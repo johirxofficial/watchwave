@@ -146,7 +146,11 @@ invitation links. It does not guess or fabricate a public URL.
 
 ## Run a room
 
-1. Install the debug APK (`adb install -r android/app/build/outputs/apk/debug/app-debug.apk`).
+1. Install the debug APK. Either download the `watchwave-debug-apk` artifact from the
+   latest CI run, or use `android/app/build/outputs/apk/debug/app-debug.apk` after a
+   local build (`adb install -r <path-to-app-debug.apk>`). The debug APK is signed with
+   the Android debug certificate and is directly installable; the release APK is not
+   signed yet.
 2. Open **Settings**, set a display name, listen port (default 8080), participant limit
    and room lifetime.
 3. Choose a video through the system file picker. Storage Access Framework grants access

@@ -52,6 +52,7 @@ Environment: Windows, JDK 17.0.20.1, Android SDK with platform 34, Node 26, Grad
 | Release run `42569281967` | passed on `ubuntu-latest`: R8 release APK built |
 | Cloudflare Quick Tunnel | Windows `cloudflared` → Ktor harness: health 200, browser index 200, room metadata 200, join 200, Range `206` with `Content-Range: bytes 100-199/2097152`, WebSocket `JOIN_ACK` + `PLAY` state confirmed |
 | Downloaded release APK | 5,504,083 bytes, SHA-256 `B7F2660A0DFC05849F4E193671EAC111DD88611C2F7C025D90F23C57E1DF8E92`; unsigned; `assets/web/*` and `classes.dex` present |
+| Downloaded CI debug APK | 25,754,222 bytes, SHA-256 `F36EC5ACF442F733ADE4043BFB2D65AEB1D72E5A98B982EFCF954CD5CDDA99B4`; v2-signed with the Android Debug certificate; 991 entries; `assets/web/*` and `classes.dex` present |
 | APK asset inspection | `assets/web/index.html`, hashed JS/CSS, manifest, SW, icons present |
 | `npm run typecheck` | passed |
 | `npm test` | 49 tests across 7 files passed, exit 0 |
