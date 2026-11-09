@@ -33,6 +33,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.watchwave.app.AppContainer
+import com.watchwave.app.ui.screens.AdvancedSettingsScreen
 import com.watchwave.app.ui.screens.CreatePartyScreen
 import com.watchwave.app.ui.screens.DiagnosticsScreen
 import com.watchwave.app.ui.screens.HistoryScreen
@@ -207,6 +208,15 @@ fun WatchWaveApp(container: AppContainer) {
                     container = container,
                     onBack = { navController.popBackStack() },
                     onOpenTunnel = { navController.navigate("tunnel") },
+                    onOpenDiagnostics = { navController.navigate("diagnostics") },
+                    onOpenAdvanced = { navController.navigate("advanced-settings") },
+                )
+            }
+
+            composable("advanced-settings") {
+                AdvancedSettingsScreen(
+                    container = container,
+                    onBack = { navController.popBackStack() },
                     onOpenDiagnostics = { navController.navigate("diagnostics") },
                 )
             }

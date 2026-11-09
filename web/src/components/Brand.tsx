@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom'
 import { cn } from '../lib/cn'
 
-export function Brand({ to = '/', compact = false }: { to?: string; compact?: boolean }) {
+/**
+ * Wordmark and app icon. The mark combines a play triangle with the two-wave
+ * motif, so it still reads at 32 px in a browser tab or on a TV.
+ */
+export function Brand({ to = '/', compact = false, showTagline = false }: { to?: string; compact?: boolean; showTagline?: boolean }) {
   return (
     <Link
       to={to}
@@ -11,21 +15,49 @@ export function Brand({ to = '/', compact = false }: { to?: string; compact?: bo
       )}
       aria-label="WatchWave home"
     >
-      <span className="relative grid size-9 place-items-center overflow-hidden rounded-xl border border-white/10 bg-ink-800 shadow-[inset_0_1px_0_rgba(255,255,255,.08)]">
-        <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,211,238,.28),transparent_65%)]" />
-        <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true" className="relative">
-          <path
-            d="M2 18c3-5.2 6-5.2 9 0s6 5.2 9 0 6-5.2 9 0"
-            stroke="#22d3ee"
-            strokeWidth="2.8"
-            strokeLinecap="round"
-          />
-          <path d="M11 9v14l11-7-11-7Z" fill="#f8fbff" />
-        </svg>
-      </span>
-      <span className={cn('font-display font-semibold tracking-tight text-white', compact ? 'text-base' : 'text-lg')}>
-        Watch<span className="text-wave-cyan">Wave</span>
+      <BrandMark size={compact ? 'sm' : 'md'} />
+      <span className="min-w-0">
+        <span
+          className={cn(
+            'block font-display font-semibold leading-none tracking-tight text-white',
+            compact ? 'text-[15px]' : 'text-[17px]',
+          )}
+        >
+          Watch<span className="text-wave-cyan">Wave</span>
+        </span>
+        {showTagline ? (
+          <span className="mt-1 block text-[9px] font-medium uppercase tracking-[0.2em] text-wave-muted">
+            watch together
+          </span>
+        ) : null}
       </span>
     </Link>
+  )
+}
+
+export function BrandMark({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
+  const box = size === 'sm' ? 'size-8 rounded-[10px]' : size === 'lg' ? 'size-14 rounded-2xl' : 'size-9 rounded-xl'
+  const icon = size === 'sm' ? 18 : size === 'lg' ? 30 : 22
+  return (
+    <span
+      className={cn(
+        'relative grid shrink-0 place-items-center overflow-hidden border border-white/10 bg-ink-800 shadow-[inset_0_1px_0_rgba(255,255,255,.09)]',
+        box,
+      )}
+      aria-hidden="true"
+    >
+      <span className="absolute inset-0 bg-[radial-gradient(circle_at_28%_18%,rgb(var(--wv-accent)/.4),transparent_68%)]" />
+      <span className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(to_top,rgb(var(--wv-accent-2)/.16),transparent)]" />
+      <svg width={icon} height={icon} viewBox="0 0 32 32" fill="none" className="relative">
+        <path
+          d="M2.5 19c3-5 6-5 9 0s6 5 9 0 6-5 9 0"
+          stroke="rgb(var(--wv-accent-2))"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          opacity=".9"
+        />
+        <path d="M12 8.8v14.4a.9.9 0 0 0 1.37.77l11.3-7.2a.9.9 0 0 0 0-1.54l-11.3-7.2A.9.9 0 0 0 12 8.8Z" fill="#ffffff" />
+      </svg>
+    </span>
   )
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Sensors
@@ -27,7 +28,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,10 +44,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.watchwave.app.AppContainer
-import com.watchwave.app.BuildConfig
 import com.watchwave.app.security.SecureStore
 import com.watchwave.app.ui.components.InfoBanner
-import com.watchwave.app.ui.components.LabeledValue
+import com.watchwave.app.ui.components.ResponsiveColumn
 import com.watchwave.app.ui.components.ScreenScaffold
 import com.watchwave.app.ui.components.SectionLabel
 import com.watchwave.app.ui.components.WaveCard
@@ -63,6 +62,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenTunnel: () -> Unit,
     onOpenDiagnostics: () -> Unit,
+    onOpenAdvanced: () -> Unit,
 ) {
     val settings by container.settings.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -78,16 +78,11 @@ fun SettingsScreen(
     var namedHostname by remember(settings.namedTunnelHostname) { mutableStateOf(settings.namedTunnelHostname) }
     var tunnelToken by remember { mutableStateOf(container.secureStore.get(SecureStore.CLOUDFLARED_TOKEN).orEmpty()) }
     var tokenVisible by remember { mutableStateOf(false) }
-    var driftSmall by remember(settings.driftSmallMs) { mutableStateOf(settings.driftSmallMs.toString()) }
-    var driftMedium by remember(settings.driftMediumMs) { mutableStateOf(settings.driftMediumMs.toString()) }
-    var driftLarge by remember(settings.driftLargeMs) { mutableStateOf(settings.driftLargeMs.toString()) }
-    var autoReconnect by remember(settings.autoReconnect) { mutableStateOf(settings.autoReconnect) }
     var saving by remember { mutableStateOf(false) }
 
     val portValid = portText.toIntOrNull()?.let { it in 1024..65535 } == true
     val maxValid = maxParticipantsText.toIntOrNull()?.let { it in 2..50 } == true
     val ttlValid = ttlText.toIntOrNull()?.let { it in 5..1440 } == true
-    val driftValid = listOf(driftSmall, driftMedium, driftLarge).all { it.toLongOrNull()?.let { value -> value > 0 } == true }
 
     ScreenScaffold(
         title = "Settings",
@@ -100,14 +95,14 @@ fun SettingsScreen(
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp)
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
+        ResponsiveColumn(modifier = Modifier.padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp)
+                    .padding(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
             InfoBanner("These defaults apply to the next room you create. A live room keeps the settings it started with.", color = WaveCyan)
 
             SectionLabel("Identity & server")
@@ -152,18 +147,6 @@ fun SettingsScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Automatic WebSocket reconnect", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Exponential backoff with session-token reuse. Recommended.",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Muted,
-                        )
-                    }
-                    Switch(checked = autoReconnect, onCheckedChange = { autoReconnect = it })
-                }
             }
 
             SectionLabel("Tunnel")
@@ -297,63 +280,30 @@ fun SettingsScreen(
                         }
                     }
                 }
+                Spacer(Modifier.height(4.dp))
             }
 
-            SectionLabel("Synchronisation")
-            WaveCard {
-                Text(
-                    "Drift thresholds decide when a viewer nudges speed or performs a seek. Lower values are stricter but may cause more visible corrections on unstable networks.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Muted,
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = driftSmall,
-                        onValueChange = { driftSmall = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Speed nudge (ms)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedTextField(
-                        value = driftMedium,
-                        onValueChange = { driftMedium = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Strong nudge (ms)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedTextField(
-                        value = driftLarge,
-                        onValueChange = { driftLarge = it.filter(Char::isDigit).take(5) },
-                        label = { Text("Seek (ms)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
+            SectionLabel("Advanced")
+            WaveCard(
+                accent = WaveCyan.copy(alpha = 0.35f),
+                onClick = onOpenAdvanced,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Advanced settings", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Drift thresholds, reconnect behaviour, build details and diagnostics.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Muted,
+                        )
+                    }
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = WaveCyan,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
-                if (!driftValid) {
-                    Spacer(Modifier.height(6.dp))
-                    Text("All thresholds must be positive numbers.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
-            }
-
-            SectionLabel("Build")
-            WaveCard {
-                LabeledValue("Version", "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-                Spacer(Modifier.height(8.dp))
-                LabeledValue("Application ID", BuildConfig.APPLICATION_ID)
-                Spacer(Modifier.height(8.dp))
-                LabeledValue("Default base domain", BuildConfig.DEFAULT_BASE_DOMAIN.ifBlank { "not configured" })
-                Spacer(Modifier.height(8.dp))
-                LabeledValue("API protocol", "v1 · WebSocket sync")
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "Tunnel tokens are encrypted with a hardware-backed Keystore key where available. Room, host and session tokens are never persisted.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Muted,
-                )
             }
 
             Button(
@@ -364,9 +314,6 @@ fun SettingsScreen(
                         val port = portText.toIntOrNull() ?: settings.serverPort
                         val max = maxParticipantsText.toIntOrNull() ?: settings.maxParticipants
                         val ttl = ttlText.toIntOrNull() ?: settings.roomTtlMinutes
-                        val small = driftSmall.toLongOrNull() ?: settings.driftSmallMs
-                        val medium = driftMedium.toLongOrNull() ?: settings.driftMediumMs
-                        val large = driftLarge.toLongOrNull() ?: settings.driftLargeMs
                         repo.setDisplayName(displayName)
                         repo.setServerPort(port)
                         repo.setMaxParticipants(max)
@@ -375,8 +322,6 @@ fun SettingsScreen(
                         repo.setCompanionPublicUrl(companionUrl)
                         repo.setCloudflaredPath(cloudflaredPath)
                         repo.setNamedTunnelHostname(namedHostname)
-                        repo.setDriftThresholds(small, medium, large)
-                        repo.setAutoReconnect(autoReconnect)
                         if (tunnelToken.isBlank()) {
                             container.secureStore.remove(SecureStore.CLOUDFLARED_TOKEN)
                         } else {
@@ -386,7 +331,7 @@ fun SettingsScreen(
                         snackbar.showSnackbar("Settings saved")
                     }
                 },
-                enabled = !saving && portValid && maxValid && ttlValid && driftValid,
+                enabled = !saving && portValid && maxValid && ttlValid,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -399,6 +344,7 @@ fun SettingsScreen(
                     Text("Save settings")
                 }
             }
+        }
         }
     }
 }

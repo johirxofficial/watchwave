@@ -350,6 +350,173 @@ export function LoaderIcon({ className, ...props }: IconProps) {
   )
 }
 
+export function HomeIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m3 10.5 9-7 9 7" />
+      <path d="M5.5 9.5V20h13V9.5" />
+      <path d="M9.5 20v-5h5v5" />
+    </Svg>
+  )
+}
+
+export function LibraryIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M3 9h18" />
+      <path d="m10 12.5 4.5 2.5-4.5 2.5v-5Z" />
+    </Svg>
+  )
+}
+
+export function SettingsIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" />
+    </Svg>
+  )
+}
+
+export function SlidersIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+      <circle cx="9" cy="6" r="2" fill="var(--tw-bg, #0c0e12)" />
+      <circle cx="15" cy="12" r="2" fill="var(--tw-bg, #0c0e12)" />
+      <circle cx="8" cy="18" r="2" fill="var(--tw-bg, #0c0e12)" />
+    </Svg>
+  )
+}
+
+export function KeyboardIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M8 14h8" />
+    </Svg>
+  )
+}
+
+export function PaletteIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3a9 9 0 1 0 0 18h1.5a2 2 0 0 0 1.4-3.4 2 2 0 0 1 1.4-3.4H18a3 3 0 0 0 3-3A9 9 0 0 0 12 3Z" />
+      <circle cx="7.5" cy="10" r="1" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="7" r="1" fill="currentColor" stroke="none" />
+      <circle cx="14" cy="7" r="1" fill="currentColor" stroke="none" />
+      <circle cx="16.5" cy="10" r="1" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
+export function GithubIcon(props: IconProps) {
+  return (
+    <svg width={props.size ?? 20} height={props.size ?? 20} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false" {...props}>
+      <path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.09.68-.22.68-.49 0-.24-.01-.87-.01-1.71-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.36-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05a9.36 9.36 0 0 1 5 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.59.69.49A10.02 10.02 0 0 0 22 12.25C22 6.58 17.52 2 12 2Z" />
+    </svg>
+  )
+}
+
+export function BellIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M10 21h4" />
+    </Svg>
+  )
+}
+
+export function ServerIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="4" width="18" height="6" rx="2" />
+      <rect x="3" y="14" width="18" height="6" rx="2" />
+      <path d="M7 7h.01M7 17h.01" />
+    </Svg>
+  )
+}
+
+export function GlobeIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18Z" />
+    </Svg>
+  )
+}
+
+export function SparklesIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m12 3 1.4 4.6L18 9l-4.6 1.4L12 15l-1.4-4.6L6 9l4.6-1.4L12 3Z" />
+      <path d="m18.5 14 .8 2.7L22 17.5l-2.7.8-.8 2.7-.8-2.7-2.7-.8 2.7-.8.8-2.7Z" />
+    </Svg>
+  )
+}
+
+export function MonitorSmartphoneIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="2.5" y="4.5" width="14" height="10" rx="2" />
+      <path d="M6 19h7" />
+      <path d="M9.5 14.5V19" />
+      <rect x="15.5" y="10" width="6" height="10" rx="1.5" />
+    </Svg>
+  )
+}
+
+export function ChevronDownIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m6 9 6 6 6-6" />
+    </Svg>
+  )
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m9 6 6 6-6 6" />
+    </Svg>
+  )
+}
+
+export function TrashIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4 7h16" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <path d="m6 7 1 13h10l1-13" />
+      <path d="M10 11v5M14 11v5" />
+    </Svg>
+  )
+}
+
+export function ExternalLinkIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M14 4h6v6" />
+      <path d="m20 4-9 9" />
+      <path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+    </Svg>
+  )
+}
+
+export function HelpIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.2a2.7 2.7 0 0 1 5.2 1c0 1.8-2.7 2.2-2.7 4" />
+      <circle cx="12" cy="17.3" r=".9" fill="currentColor" stroke="none" />
+    </Svg>
+  )
+}
+
 export function WaveIcon({ size = 24, ...props }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true" focusable="false" {...props}>

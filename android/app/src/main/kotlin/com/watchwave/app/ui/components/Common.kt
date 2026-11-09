@@ -3,6 +3,7 @@ package com.watchwave.app.ui.components
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -48,22 +50,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.watchwave.app.ui.theme.Ink
 import com.watchwave.app.ui.theme.Muted
 import com.watchwave.app.ui.theme.OutlineSoft
 import com.watchwave.app.ui.theme.Surface as WaveSurface
+import com.watchwave.app.ui.theme.SurfaceHigh
+import com.watchwave.app.ui.theme.SurfaceRaised
 import com.watchwave.app.ui.theme.WaveAmber
 import com.watchwave.app.ui.theme.WaveCyan
 import com.watchwave.app.ui.theme.WaveGreen
 import com.watchwave.app.ui.theme.WaveRed
+import com.watchwave.app.ui.theme.WaveTeal
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -71,12 +83,32 @@ import kotlin.math.roundToLong
 
 fun waveBackgroundBrush(): Brush = Brush.verticalGradient(
     colors = listOf(
-        Ink,
-        Color(0xFF0A1019),
-        Color(0xFF0A0F18),
-        Ink,
+        Color(0xFF08090C),
+        Color(0xFF0A0D13),
+        Color(0xFF0B0E14),
+        Color(0xFF08090C),
     ),
 )
+
+/**
+ * Keeps content readable on tablets, foldables and desktop-class windows while
+ * remaining edge-to-edge on phones.
+ */
+@Composable
+fun ResponsiveColumn(
+    modifier: Modifier = Modifier,
+    maxWidth: Dp = 760.dp,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = maxWidth)
+                .fillMaxWidth(),
+            content = content,
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -142,35 +174,57 @@ fun BrandMark(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(11.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .background(
-                    Brush.linearGradient(listOf(WaveCyan, Color(0xFF0EA5B7))),
-                ),
+                    Brush.radialGradient(
+                        colors = listOf(WaveCyan.copy(alpha = 0.36f), SurfaceHigh),
+                    ),
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(12.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(
-                Icons.Filled.PlayArrow,
-                contentDescription = null,
-                tint = Color(0xFF04222A),
-                modifier = Modifier.size(24.dp),
-            )
+            Canvas(modifier = Modifier.size(25.dp)) {
+                val w = size.width
+                val h = size.height
+                val wave = Path().apply {
+                    moveTo(w * 0.02f, h * 0.68f)
+                    cubicTo(w * 0.15f, h * 0.42f, w * 0.27f, h * 0.42f, w * 0.39f, h * 0.68f)
+                    cubicTo(w * 0.51f, h * 0.94f, w * 0.63f, h * 0.94f, w * 0.75f, h * 0.68f)
+                    cubicTo(w * 0.86f, h * 0.45f, w * 0.94f, h * 0.44f, w, h * 0.53f)
+                }
+                drawPath(
+                    path = wave,
+                    color = WaveTeal,
+                    style = Stroke(width = w * 0.072f, cap = StrokeCap.Round),
+                )
+                val play = Path().apply {
+                    moveTo(w * 0.37f, h * 0.24f)
+                    lineTo(w * 0.71f, h * 0.46f)
+                    lineTo(w * 0.37f, h * 0.68f)
+                    close()
+                }
+                drawPath(path = play, color = Color.White)
+            }
         }
         Column {
             Text(
-                text = "WatchWave",
+                text = buildAnnotatedString {
+                    append("Watch")
+                    withStyle(SpanStyle(color = WaveCyan)) { append("Wave") }
+                },
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "SELF-HOSTED WATCH PARTIES",
+                text = "WATCH TOGETHER",
                 style = MaterialTheme.typography.labelSmall,
-                color = WaveCyan,
-                letterSpacing = 1.6.sp,
+                color = WaveTeal,
+                letterSpacing = 1.8.sp,
             )
         }
     }

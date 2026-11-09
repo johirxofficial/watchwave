@@ -160,6 +160,9 @@ export function useWatchParty(roomId: string, inviteToken: string | null): UseWa
         inviteToken: inviteRef.current ?? stored.inviteToken,
         displayName: stored.displayName,
         savedAt: Date.now(),
+        roomName: response.room?.roomName,
+        hostName: response.room?.hostName,
+        mediaTitle: response.room?.media?.title,
       }
       sessionRef.current = session
       saveSession(roomId, session)

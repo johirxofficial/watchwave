@@ -14,6 +14,10 @@ export interface StoredSession {
   inviteToken: string | null
   displayName: string
   savedAt: number
+  /** Optional preview metadata. Never used for authentication. */
+  roomName?: string
+  hostName?: string
+  mediaTitle?: string
 }
 
 function safeSession(): Storage | null {
@@ -52,6 +56,9 @@ export function loadSession(roomId: string): StoredSession | null {
       inviteToken: typeof candidate.inviteToken === 'string' ? candidate.inviteToken : null,
       displayName: candidate.displayName,
       savedAt: typeof candidate.savedAt === 'number' ? candidate.savedAt : 0,
+      roomName: typeof candidate.roomName === 'string' ? candidate.roomName.slice(0, 64) : undefined,
+      hostName: typeof candidate.hostName === 'string' ? candidate.hostName.slice(0, 32) : undefined,
+      mediaTitle: typeof candidate.mediaTitle === 'string' ? candidate.mediaTitle.slice(0, 120) : undefined,
     }
   } catch {
     return null
@@ -67,6 +74,52 @@ export function saveSession(roomId: string, session: Omit<StoredSession, 'v' | '
   } catch {
     // Storage can be unavailable in hardened browsers; the live tab still works.
   }
+}
+
+export interface StoredSessionSummary extends StoredSession {
+  roomId: string
+}
+
+/**
+ * Rooms joined in this tab. The invite token stays in sessionStorage, so the
+ * list disappears when the tab closes and never leaks into a shared device.
+ */
+export function listSessions(): StoredSessionSummary[] {
+  const store = safeSession()
+  if (!store) return []
+  const sessions: StoredSessionSummary[] = []
+  try {
+    for (let index = 0; index < store.length; index += 1) {
+      const key = store.key(index)
+      if (!key?.startsWith(SESSION_PREFIX)) continue
+      const roomId = key.slice(SESSION_PREFIX.length)
+      const session = loadSession(roomId)
+      if (session) sessions.push({ ...session, roomId })
+    }
+  } catch {
+    return []
+  }
+  return sessions.sort((a, b) => b.savedAt - a.savedAt)
+}
+
+export function clearAllSessions(): number {
+  const store = safeSession()
+  if (!store) return 0
+  let removed = 0
+  try {
+    const keys: string[] = []
+    for (let index = 0; index < store.length; index += 1) {
+      const key = store.key(index)
+      if (key?.startsWith(SESSION_PREFIX)) keys.push(key)
+    }
+    for (const key of keys) {
+      store.removeItem(key)
+      removed += 1
+    }
+  } catch {
+    return removed
+  }
+  return removed
 }
 
 export function clearSession(roomId: string): void {

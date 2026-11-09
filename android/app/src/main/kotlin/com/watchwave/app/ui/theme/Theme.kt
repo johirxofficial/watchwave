@@ -13,36 +13,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-val WaveCyan = Color(0xFF22D3EE)
-val WaveViolet = Color(0xFF8B5CF6)
-val WaveAmber = Color(0xFFFBBF24)
-val WaveGreen = Color(0xFF34D399)
-val WaveRed = Color(0xFFF87171)
-val Ink = Color(0xFF070A10)
-val Surface = Color(0xFF10151F)
-val SurfaceRaised = Color(0xFF171E2B)
-val OutlineSoft = Color(0xFF2A3446)
-val Muted = Color(0xFF8A93A6)
+/**
+ * Midnight-cinema palette shared with the browser client.
+ * The accent is an electric blue with a cool teal secondary, tuned for long
+ * viewing sessions in a dark room.
+ */
+val WaveCyan = Color(0xFF5B9DFF)
+val WaveTeal = Color(0xFF5EEAD4)
+val WaveViolet = Color(0xFF8B7CFF)
+val WaveAmber = Color(0xFFFFB74D)
+val WaveGreen = Color(0xFF4ADE80)
+val WaveRed = Color(0xFFFF6B6B)
+val Ink = Color(0xFF08090C)
+val Surface = Color(0xFF0C0E12)
+val SurfaceRaised = Color(0xFF11141A)
+val SurfaceHigh = Color(0xFF161A21)
+val OutlineSoft = Color(0xFF232A36)
+val Muted = Color(0xFF8B93A3)
+val Soft = Color(0xFFC4CBD8)
 
 private val DarkScheme = darkColorScheme(
     primary = WaveCyan,
-    onPrimary = Color(0xFF00202A),
-    primaryContainer = Color(0xFF0E4A57),
-    onPrimaryContainer = Color(0xFFB9F4FF),
-    secondary = WaveViolet,
-    onSecondary = Color(0xFF1A0B33),
-    secondaryContainer = Color(0xFF34205C),
-    onSecondaryContainer = Color(0xFFE9DDFF),
+    onPrimary = Color(0xFF04162E),
+    primaryContainer = Color(0xFF1B3B66),
+    onPrimaryContainer = Color(0xFFD6E6FF),
+    secondary = WaveTeal,
+    onSecondary = Color(0xFF042B26),
+    secondaryContainer = Color(0xFF10332F),
+    onSecondaryContainer = Color(0xFFC9FFF6),
     tertiary = WaveAmber,
     onTertiary = Color(0xFF2A1C00),
     background = Ink,
-    onBackground = Color(0xFFF5F7FF),
+    onBackground = Color(0xFFF3F5F9),
     surface = Surface,
-    onSurface = Color(0xFFF5F7FF),
+    onSurface = Color(0xFFF3F5F9),
     surfaceVariant = SurfaceRaised,
-    onSurfaceVariant = Color(0xFFC2CADA),
+    onSurfaceVariant = Soft,
     outline = OutlineSoft,
-    outlineVariant = Color(0xFF1D2635),
+    outlineVariant = Color(0xFF1A1F28),
     error = WaveRed,
     onError = Color(0xFF2B0808),
 )
@@ -53,13 +61,14 @@ private val WatchWaveTypography = Typography(
         fontWeight = FontWeight.Bold,
         fontSize = 34.sp,
         lineHeight = 40.sp,
-        letterSpacing = (-0.5).sp,
+        letterSpacing = (-0.6).sp,
     ),
     headlineMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Bold,
         fontSize = 26.sp,
         lineHeight = 32.sp,
+        letterSpacing = (-0.3).sp,
     ),
     titleLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,

@@ -23,10 +23,15 @@ export function ParticipantList({
   return (
     <section aria-label="Room participants" className="flex flex-col">
       <div className="flex items-center justify-between px-4 pt-4">
-        <h2 className="text-[12px] font-semibold uppercase tracking-[0.14em] text-wave-muted">
-          In the room
-        </h2>
-        <span className="font-mono text-[11px] text-wave-muted/80">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-wave-muted">
+            In the room
+          </h2>
+          <span className="inline-flex size-4 items-center justify-center rounded-full bg-wave-green/15 text-[9px] font-semibold text-wave-green">
+            {participants.filter((participant) => participant.connected !== false).length}
+          </span>
+        </div>
+        <span className="font-mono text-[10px] text-wave-muted/70">
           {participants.length}/{Math.max(maxParticipants, participants.length)}
         </span>
       </div>

@@ -1,7 +1,7 @@
 {
   "name": "watchwave-web",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "WatchWave browser client — join a hosted watch party and stay in sync.",
   "scripts": {

@@ -15,6 +15,22 @@ one HTTPS link is enough. **Instant public** mode starts a free Cloudflare Quick
 the phone itself; you do not need a PC, Termux, account or port forwarding in the normal
 flow.
 
+## What's new in 1.1
+
+- **Midnight-cinema redesign** across Android and the browser client: an electric-blue
+  accent, deeper surfaces, larger tap targets and a calmer, theater-first room layout.
+- **Responsive everywhere.** The browser shell adapts from a phone bottom bar to a desktop
+  rail, and Android content is width-capped so tablets and foldables stay readable.
+- **Viewer preferences that stay local.** Theme accent, reduced motion, density, start-muted,
+  autoplay, skip distance, chat timestamps and other player defaults live in **Settings**
+  and never change the host's room.
+- **Advanced settings have their own section.** Android keeps everyday host controls on the
+  main Settings screen and moves drift thresholds, reconnect behaviour, build details and
+  diagnostics into **Settings → Advanced**. The browser groups advanced options under a
+  clearly separated **Advanced** section too.
+- **MX Player-inspired transport.** Large play/pause, configurable skip, speed menu,
+  keyboard shortcuts, double-click side skip, PiP, fullscreen and a live sync badge.
+
 ## Quick start (the intended flow)
 
 1. **Install** the debug APK from the latest CI artifact or a GitHub release.
@@ -46,7 +62,7 @@ and keeps the screen on during playback.
 | Cloudflare Quick Tunnel | Verified from a Windows companion **and** on-device with the bundled arm64 binary |
 | Room chat | Server-authoritative identity/timestamps, 500-char limit, 10/10 s rate limit, 100-message in-memory history; Android + browser UI; protocol integration tests |
 | One-tap in-app public link | Packaged and executable; final live-room UI pass blocked by a locked test device (see below) |
-| Automated tests | **66 Android tests** (38 shared + 28 streaming) and **52 browser tests**; CI run `42589858867` passed |
+| Automated tests | **66 Android tests** (38 shared + 28 streaming) and **58 browser tests**; CI runs both suites |
 | Open source | MIT license, contribution/security/conduct docs, issue and PR templates |
 
 ### Honest limits
@@ -186,7 +202,7 @@ npm test
 npm run build
 ```
 
-Current counts: **66 Android tests** and **52 browser tests**. The Android suite covers the
+Current counts: **66 Android tests** and **58 browser tests**. The Android suite covers the
 chat limiter, empty/oversized chat rejection, history replay, socket joins/state, Range
 responses, tokens, rooms and sync. The web suite covers chat state/reducers, sync-client
 chat sends, drift, invite parsing, storage and clock behavior.

@@ -2,11 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   WatchWave design tokens
+   The accent is a CSS variable so people can pick a palette in Settings without
+   shipping four stylesheets or re-rendering every component.
+--------------------------------------------------------------------------- */
+:root {
+  --wv-accent: 91 157 255;
+  --wv-accent-2: 94 234 212;
+  --wv-ink-950: 8 9 12;
+  --wv-ink-900: 12 14 18;
+  --wv-ink-850: 17 20 26;
+  --wv-ink-800: 22 26 33;
+  --wv-ink-700: 31 36 46;
+  --wv-ink-600: 44 51 64;
+  --wv-muted: 139 147 163;
+  --wv-soft: 196 203 216;
+  --wv-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-accent='ember'] {
+  --wv-accent: 255 122 89;
+  --wv-accent-2: 255 183 77;
+}
+
+[data-accent='mint'] {
+  --wv-accent: 74 222 128;
+  --wv-accent-2: 45 212 191;
+}
+
+[data-accent='mono'] {
+  --wv-accent: 226 232 240;
+  --wv-accent-2: 148 163 184;
+}
+
 @layer base {
   html {
     height: 100%;
     color-scheme: dark;
-    background-color: #06070b;
+    background-color: rgb(var(--wv-ink-950));
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {
@@ -14,19 +49,21 @@
     margin: 0;
     font-family:
       Inter,
+      'SF Pro Text',
       'Segoe UI Variable Text',
       'Segoe UI',
       system-ui,
       -apple-system,
       sans-serif;
-    background-color: #06070b;
+    background-color: rgb(var(--wv-ink-950));
     background-image:
-      radial-gradient(circle at 18% -10%, rgba(34, 211, 238, 0.08), transparent 42%),
-      radial-gradient(circle at 88% 8%, rgba(45, 212, 191, 0.05), transparent 36%);
+      radial-gradient(ellipse 80% 55% at 12% -12%, rgb(var(--wv-accent) / 0.09), transparent 60%),
+      radial-gradient(ellipse 60% 45% at 92% 4%, rgb(var(--wv-accent-2) / 0.05), transparent 58%);
     background-attachment: fixed;
-    color: #f1f5f9;
+    color: #f4f6fb;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
   }
 
   #root {
@@ -35,8 +72,8 @@
   }
 
   ::selection {
-    background: rgba(34, 211, 238, 0.3);
-    color: #f8fbff;
+    background: rgb(var(--wv-accent) / 0.32);
+    color: #ffffff;
   }
 
   :focus-visible {
@@ -51,35 +88,82 @@
   }
 
   input[type='range'] {
-    accent-color: #22d3ee;
+    accent-color: rgb(var(--wv-accent));
   }
 
   pre,
   code {
-    font-family: 'Cascadia Code', Consolas, ui-monospace, monospace;
+    font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, ui-monospace, monospace;
   }
 
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+    scrollbar-color: rgba(148, 163, 184, 0.24) transparent;
   }
 
   *::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
   }
 
   *::-webkit-scrollbar-thumb {
     border-radius: 9999px;
-    background: rgba(148, 163, 184, 0.24);
+    background: rgba(148, 163, 184, 0.22);
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 0.4);
+    background: rgba(148, 163, 184, 0.38);
   }
 
   *::-webkit-scrollbar-track {
     background: transparent;
+  }
+}
+
+@layer components {
+  .app-card {
+    @apply relative overflow-hidden rounded-2xl border border-white/[0.07] bg-ink-850/80 shadow-panel backdrop-blur;
+  }
+
+  .app-card-interactive {
+    @apply app-card transition duration-200 hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-ink-800/90;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium text-wave-muted outline-none transition hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-wave-cyan/60;
+  }
+
+  .nav-item-active {
+    @apply bg-wave-cyan/[0.12] text-wave-cyan;
+  }
+
+  .section-eyebrow {
+    @apply text-[10px] font-semibold uppercase tracking-[0.22em] text-wave-cyan;
+  }
+
+  .section-title {
+    @apply font-display text-2xl font-semibold tracking-tight text-white sm:text-3xl;
+  }
+
+  .surface-divider {
+    @apply border-t border-white/[0.06];
+  }
+
+  .touch-target {
+    @apply min-h-11 min-w-11;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 30px rgb(var(--wv-accent) / 0.35);
   }
 }
 
@@ -92,13 +176,71 @@
     text-wrap: pretty;
   }
 
+  .pb-safe {
+    padding-bottom: calc(1rem + var(--wv-safe-bottom));
+  }
+
+  .safe-bottom {
+    bottom: calc(0.5rem + var(--wv-safe-bottom));
+  }
+
   .bg-grid {
     background-image:
-      linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(ellipse at top, black 30%, transparent 75%);
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 52px 52px;
+    mask-image: radial-gradient(ellipse at top, black 20%, transparent 72%);
   }
+
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.045'/%3E%3C/svg%3E");
+  }
+
+  .media-mask {
+    mask-image: linear-gradient(to bottom, black 68%, transparent 100%);
+  }
+}
+
+/* Density */
+[data-density='compact'] .density-room {
+  gap: 0.5rem;
+}
+
+[data-density='compact'] .density-card {
+  padding: 0.9rem;
+}
+
+[data-density='compact'] .density-section {
+  padding-top: 1.6rem;
+  padding-bottom: 1.6rem;
+}
+
+/* Data saver: remove ambience, keep every control. */
+[data-data-saver='true'] .ambient {
+  display: none !important;
+}
+
+[data-data-saver='true'] body {
+  background-image: none;
+}
+
+[data-data-saver='true'] .app-card,
+[data-data-saver='true'] .nav-shell,
+[data-data-saver='true'] .player-shell {
+  backdrop-filter: none;
+}
+
+/* Reduce motion can come from Settings or the operating system. */
+[data-reduce-motion='true'] *,
+[data-reduce-motion='true'] *::before,
+[data-reduce-motion='true'] *::after,
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

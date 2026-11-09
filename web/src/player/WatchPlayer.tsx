@@ -5,8 +5,8 @@ import { formatClock } from '../lib/format'
 import { loadVolume, saveVolume } from '../lib/storage'
 import type { PlaybackAnchor } from '../room/state'
 import type { ConnectionPhase } from '../services/sync-client'
-import { LockIcon, PlayIcon, RefreshIcon, WifiOffIcon } from '../components/Icons'
-import { LiveDot, Pill, Spinner } from '../components/ui'
+import { CloseIcon, LockIcon, PlayIcon, RefreshIcon, WifiOffIcon } from '../components/Icons'
+import { KeyCap, LiveDot, Pill, Spinner } from '../components/ui'
 import { PlayerControls } from './PlayerControls'
 
 export interface WatchPlayerProps {
@@ -17,6 +17,11 @@ export interface WatchPlayerProps {
   connection: ConnectionPhase
   connectionDetail: string | null
   serverNow: () => number
+  skipSeconds: number
+  startMuted: boolean
+  showDrift: boolean
+  cinemaMode: boolean
+  keyboardShortcuts: boolean
   onPlay: (positionMs: number) => void
   onPause: (positionMs: number) => void
   onSeek: (positionMs: number) => void
@@ -39,6 +44,11 @@ export function WatchPlayer({
   connection,
   connectionDetail,
   serverNow,
+  skipSeconds,
+  startMuted,
+  showDrift,
+  cinemaMode,
+  keyboardShortcuts,
   onPlay,
   onPause,
   onSeek,
@@ -76,6 +86,8 @@ export function WatchPlayer({
   const [scrubMs, setScrubMs] = useState<number | null>(null)
   const [driftMs, setDriftMs] = useState(0)
   const [controlsVisible, setControlsVisible] = useState(true)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [skipFlash, setSkipFlash] = useState<{ direction: 'back' | 'forward'; id: number } | null>(null)
 
   playbackRef.current = playback
   serverNowRef.current = serverNow
@@ -107,8 +119,10 @@ export function WatchPlayer({
     if (!video) return
     const stored = loadVolume()
     video.volume = stored
+    video.muted = startMuted
     setVolume(stored)
-  }, [])
+    setMuted(startMuted)
+  }, [startMuted])
 
   // A different media id on the same stream path needs a hard reload.
   useEffect(() => {
@@ -237,9 +251,9 @@ export function WatchPlayer({
     if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current)
     const video = videoRef.current
     if (video && !video.paused) {
-      hideTimerRef.current = window.setTimeout(() => setControlsVisible(false), 3_000)
+      hideTimerRef.current = window.setTimeout(() => setControlsVisible(false), cinemaMode ? 2_200 : 4_500)
     }
-  }, [])
+  }, [cinemaMode])
 
   useEffect(() => {
     if (playing) {
@@ -278,9 +292,16 @@ export function WatchPlayer({
       video.currentTime = target / 1000
       lastKnownPositionRef.current = target
       onSeek(target)
+      setSkipFlash({ direction: deltaMs < 0 ? 'back' : 'forward', id: Date.now() })
     },
     [onSeek],
   )
+
+  useEffect(() => {
+    if (!skipFlash) return
+    const timer = window.setTimeout(() => setSkipFlash(null), 750)
+    return () => window.clearTimeout(timer)
+  }, [skipFlash])
 
   const commitSeek = useCallback(
     (valueMs: number) => {
@@ -353,9 +374,12 @@ export function WatchPlayer({
   }, [])
 
   useEffect(() => {
+    if (!keyboardShortcuts) return
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target?.closest('input, textarea, select, button, [contenteditable="true"]')) return
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const skipMs = skipSeconds * 1_000
       switch (event.key) {
         case ' ':
         case 'k':
@@ -364,17 +388,30 @@ export function WatchPlayer({
           break
         case 'ArrowLeft':
           event.preventDefault()
-          seekBy(-10_000)
+          seekBy(-skipMs)
           break
         case 'ArrowRight':
           event.preventDefault()
-          seekBy(10_000)
+          seekBy(skipMs)
           break
         case 'm':
+          event.preventDefault()
           toggleMute()
           break
         case 'f':
+          event.preventDefault()
           toggleFullscreen()
+          break
+        case 'p':
+          event.preventDefault()
+          togglePip()
+          break
+        case '?':
+          event.preventDefault()
+          setHelpOpen((value) => !value)
+          break
+        case 'Escape':
+          setHelpOpen(false)
           break
         default:
           break
@@ -382,7 +419,7 @@ export function WatchPlayer({
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [seekBy, toggleFullscreen, toggleMute, togglePlay])
+  }, [keyboardShortcuts, seekBy, skipSeconds, toggleFullscreen, toggleMute, togglePip, togglePlay])
 
   const handleLoadedMetadata = () => {
     const video = videoRef.current
@@ -408,12 +445,24 @@ export function WatchPlayer({
   const showCenterPlay = !playing && !buffering && !streamError
   const waitingForHost = !playback && (connection === 'connecting' || connection === 'reconnecting')
 
+  const handleVideoDoubleClick = (event: React.MouseEvent<HTMLVideoElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const ratio = rect.width > 0 ? (event.clientX - rect.left) / rect.width : 0.5
+    if (ratio < 0.34) {
+      seekBy(-skipSeconds * 1_000)
+    } else if (ratio > 0.66) {
+      seekBy(skipSeconds * 1_000)
+    } else {
+      toggleFullscreen()
+    }
+  }
+
   return (
     <div
       ref={shellRef}
       className={cn(
-        'group/player relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-panel',
-        fullscreen && 'rounded-none border-0',
+        'player-shell group/player relative aspect-video w-full overflow-hidden rounded-2xl border border-white/[0.09] bg-black shadow-glow',
+        fullscreen && 'rounded-none border-0 shadow-none',
       )}
       onMouseMove={revealControls}
       onMouseLeave={() => {
@@ -429,7 +478,7 @@ export function WatchPlayer({
         preload="auto"
         aria-label={mediaTitle ? `Video: ${mediaTitle}` : 'WatchWave video'}
         onClick={togglePlay}
-        onDoubleClick={toggleFullscreen}
+        onDoubleClick={handleVideoDoubleClick}
         onLoadedMetadata={handleLoadedMetadata}
         onTimeUpdate={(event) => {
           lastKnownPositionRef.current = event.currentTarget.currentTime * 1000
@@ -459,13 +508,28 @@ export function WatchPlayer({
         }}
       />
 
+      {skipFlash ? (
+        <div
+          key={skipFlash.id}
+          className={cn(
+            'pointer-events-none absolute inset-y-0 z-20 flex w-1/3 items-center justify-center bg-white/[0.06] animate-fade-in',
+            skipFlash.direction === 'back' ? 'left-0 rounded-r-full' : 'right-0 rounded-l-full',
+          )}
+        >
+          <span className="flex flex-col items-center gap-1 rounded-2xl bg-black/55 px-4 py-3 text-white backdrop-blur-sm">
+            <span className="font-mono text-lg font-semibold">{skipFlash.direction === 'back' ? '−' : '+'}{skipSeconds}s</span>
+            <span className="text-[10px] uppercase tracking-[0.14em] text-white/60">{skipFlash.direction === 'back' ? 'rewind' : 'forward'}</span>
+          </span>
+        </div>
+      ) : null}
+
       <div
         className={cn(
-          'pointer-events-none absolute inset-0 flex flex-col justify-between transition-opacity duration-200',
+          'pointer-events-none absolute inset-0 z-30 flex flex-col justify-between transition-opacity duration-200',
           controlsVisible || !playing ? 'opacity-100' : 'opacity-0',
         )}
       >
-        <div className="flex items-start justify-between gap-3 bg-gradient-to-b from-black/70 to-transparent px-4 pb-12 pt-3">
+        <div className="flex items-start justify-between gap-3 bg-gradient-to-b from-black/75 to-transparent px-3.5 pb-6 pt-2.5 sm:px-4 sm:pb-12 sm:pt-3">
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-white/90">{mediaTitle || 'WatchWave room'}</p>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -504,6 +568,8 @@ export function WatchPlayer({
           muted={muted}
           speed={playback?.playbackSpeed ?? 1}
           driftMs={driftMs}
+          skipSeconds={skipSeconds}
+          showDrift={showDrift}
           fullscreen={fullscreen}
           pipSupported={canPip}
           pipActive={pipActive}
@@ -520,8 +586,11 @@ export function WatchPlayer({
           onSpeedChange={changeSpeed}
           onToggleFullscreen={toggleFullscreen}
           onTogglePip={togglePip}
+          onShowHelp={() => setHelpOpen(true)}
         />
       </div>
+
+      {helpOpen ? <ShortcutsHelp onClose={() => setHelpOpen(false)} skipSeconds={skipSeconds} /> : null}
 
       {streamError ? (
         <CentrePanel>
@@ -599,6 +668,60 @@ function CentrePanel({ children }: { children: ReactNode }) {
 
 function eventSafeDuration(video: HTMLVideoElement | null): number {
   return video && Number.isFinite(video.duration) ? video.duration : 0
+}
+
+function ShortcutsHelp({ onClose, skipSeconds }: { onClose: () => void; skipSeconds: number }) {
+  const shortcuts: Array<[string, string]> = [
+    ['Space / K', 'Play or pause'],
+    ['← / →', `Skip ${skipSeconds} seconds`],
+    ['M', 'Mute or unmute'],
+    ['F', 'Fullscreen'],
+    ['P', 'Picture-in-picture'],
+    ['?', 'Toggle this help'],
+    ['Esc', 'Close overlays'],
+  ]
+  return (
+    <div
+      className="absolute inset-0 z-50 grid place-items-center bg-black/70 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Keyboard shortcuts"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border border-white/12 bg-ink-900/95 p-5 shadow-float"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-wave-cyan">Keyboard</p>
+            <h2 className="mt-1 font-display text-lg font-semibold text-white">Player shortcuts</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-8 place-items-center rounded-lg text-wave-muted transition hover:bg-white/10 hover:text-white"
+            aria-label="Close shortcut help"
+          >
+            <CloseIcon size={17} />
+          </button>
+        </div>
+        <dl className="mt-4 space-y-2.5">
+          {shortcuts.map(([key, action]) => (
+            <div key={key} className="flex items-center justify-between gap-4">
+              <dt>
+                <KeyCap>{key}</KeyCap>
+              </dt>
+              <dd className="text-[12px] text-wave-muted">{action}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="mt-4 border-t border-white/[0.06] pt-3 text-[10px] leading-relaxed text-wave-muted/60">
+          Shortcuts are ignored while you are typing in chat or a form. You can disable them in Settings → Playback.
+        </p>
+      </div>
+    </div>
+  )
 }
 
 function clamp(value: number, min: number, max: number): number {

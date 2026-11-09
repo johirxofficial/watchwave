@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Brand } from '../components/Brand'
-import { LockIcon, PlayIcon, ShieldIcon, UsersIcon, WaveIcon } from '../components/Icons'
-import { Avatar, Banner, Button, Panel, Pill, TextField } from '../components/ui'
+import { ArrowRightIcon, LockIcon, PlayIcon, ShieldIcon, UsersIcon, WaveIcon } from '../components/Icons'
+import { Avatar, Banner, Button, Card, Pill, TextField } from '../components/ui'
 import { formatClock } from '../lib/format'
 import { participantWithDefaults, roomWithDefaults, type RoomSummary } from '../lib/protocol'
 
@@ -34,76 +34,85 @@ export function JoinPanel({
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-40 top-0 size-[34rem] rounded-full bg-wave-cyan/[0.07] blur-3xl" />
-        <div className="absolute -right-32 bottom-0 size-[30rem] rounded-full bg-teal-400/[0.05] blur-3xl" />
+    <div className="relative flex min-h-screen flex-col overflow-hidden">
+      <div className="ambient pointer-events-none absolute inset-0">
+        <div className="absolute -left-40 top-0 size-[34rem] rounded-full bg-wave-cyan/[0.08] blur-3xl" />
+        <div className="absolute -right-32 bottom-0 size-[30rem] rounded-full bg-wave-teal/[0.05] blur-3xl" />
+        <div className="absolute inset-0 bg-grid opacity-30" />
       </div>
 
       <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
-        <Brand compact />
+        <Brand compact showTagline />
         <Pill tone="cyan">
           <WaveIcon size={12} /> Invite only
         </Pill>
       </header>
 
-      <main className="relative z-10 mx-auto grid w-full max-w-6xl flex-1 items-center gap-6 px-5 pb-16 pt-4 sm:px-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-10">
-        <Panel accent className="animate-fade-up p-6 sm:p-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-wave-cyan">You're invited</p>
-          <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-            {room?.roomName || 'Watch party'}
-          </h1>
-          <p className="mt-2 text-sm text-wave-muted">
-            Room <span className="font-mono text-slate-300">{roomId}</span>
-          </p>
+      <main className="relative z-10 mx-auto grid w-full max-w-5xl flex-1 items-center gap-5 px-4 pb-16 pt-3 sm:px-6 lg:grid-cols-[1.06fr_0.94fr] lg:gap-8">
+        <Card accent className="animate-fade-up overflow-hidden">
+          <div className="relative border-b border-white/[0.06] p-6 sm:p-8">
+            <div className="ambient absolute -right-16 -top-20 size-56 rounded-full bg-wave-cyan/10 blur-3xl" />
+            <p className="section-eyebrow">You&apos;re invited</p>
+            <h1 className="mt-2 text-balance font-display text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+              {room?.roomName || 'Watch party'}
+            </h1>
+            <p className="mt-1.5 text-[12px] text-wave-muted">
+              Room <span className="font-mono text-slate-300">{roomId}</span>
+            </p>
 
-          <div className="mt-7 flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-3">
-            <Avatar name={host?.displayName ?? 'Host'} host size="md" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">{host?.displayName ?? 'Host'}</p>
-              <p className="text-xs text-wave-muted">
-                {room?.hostOnline === false ? 'Host reconnecting…' : 'Hosting this room'}
-              </p>
-            </div>
-            <Pill tone={room?.hostOnline === false ? 'amber' : 'green'}>
-              {room?.hostOnline === false ? 'Away' : 'Online'}
-            </Pill>
-          </div>
-
-          {room?.media ? (
-            <div className="mt-4 flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-3">
-              <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-wave-cyan/10 text-wave-cyan">
-                <PlayIcon size={18} />
-              </span>
+            <div className="mt-6 flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-3">
+              <Avatar name={host?.displayName ?? 'Host'} host size="md" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-white">{room.media.title}</p>
-                <p className="text-xs text-wave-muted">
-                  {formatClock(room.media.durationMs)} · original quality
-                  {room.media.mimeType ? ` · ${room.media.mimeType.split('/').pop()}` : ''}
+                <p className="truncate text-sm font-medium text-white">{host?.displayName ?? 'Host'}</p>
+                <p className="text-[11px] text-wave-muted">
+                  {room?.hostOnline === false ? 'Host reconnecting…' : 'Hosting this room'}
                 </p>
               </div>
+              <Pill tone={room?.hostOnline === false ? 'amber' : 'green'}>
+                {room?.hostOnline === false ? 'Away' : 'Online'}
+              </Pill>
             </div>
-          ) : (
-            <div className="mt-4 rounded-xl border border-dashed border-white/10 p-4 text-sm text-wave-muted">
-              The host has not attached a video yet.
-            </div>
-          )}
 
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-wave-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <UsersIcon size={14} /> {room?.participantCount ?? 0} watching
-              {room ? ` · up to ${room.maxParticipants}` : ''}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldIcon size={14} /> Invite-scoped access
-            </span>
+            {room?.media ? (
+              <div className="mt-3 flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/20 p-3">
+                <span className="relative grid size-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-[linear-gradient(135deg,rgb(var(--wv-accent)/.22),rgb(var(--wv-accent-2)/.08))] text-wave-cyan">
+                  <PlayIcon size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-white">{room.media.title}</p>
+                  <p className="text-[11px] text-wave-muted">
+                    {formatClock(room.media.durationMs)} · original quality
+                    {room.media.mimeType ? ` · ${room.media.mimeType.split('/').pop()}` : ''}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 rounded-xl border border-dashed border-white/10 p-4 text-sm text-wave-muted">
+                The host has not attached a video yet.
+              </div>
+            )}
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-wave-muted">
+              <span className="inline-flex items-center gap-1.5">
+                <UsersIcon size={13} /> {room?.participantCount ?? 0} watching
+                {room ? ` · up to ${room.maxParticipants}` : ''}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldIcon size={13} /> Invite-scoped access
+              </span>
+            </div>
           </div>
-        </Panel>
+          <div className="grid gap-3 bg-white/[0.02] p-4 text-[11px] text-wave-muted sm:grid-cols-3">
+            <Step number="01" title="No account" body="Just a display name." />
+            <Step number="02" title="Direct stream" body="From the host's phone." />
+            <Step number="03" title="Stay in sync" body="Playback follows the host." />
+          </div>
+        </Card>
 
-        <Panel className="animate-fade-up p-6 sm:p-8" >
+        <Card className="animate-fade-up p-6 sm:p-8">
           <h2 className="font-display text-2xl font-semibold tracking-tight text-white">Join the room</h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-wave-muted">
-            Choose the name other viewers will see. No account or upload is needed.
+          <p className="mt-1.5 text-[13px] leading-relaxed text-wave-muted">
+            Choose the name other viewers will see. Your session stays in this tab.
           </p>
 
           <form className="mt-6 space-y-4" onSubmit={submit}>
@@ -125,40 +134,39 @@ export function JoinPanel({
               </Banner>
             ) : null}
 
-            <Button type="submit" size="lg" className="w-full" loading={joining} disabled={!hasInvite || name.trim().length === 0}>
+            <Button
+              type="submit"
+              size="lg"
+              className="w-full"
+              loading={joining}
+              disabled={!hasInvite || name.trim().length === 0}
+            >
               {joining ? 'Joining…' : 'Join watch party'}
+              {!joining ? <ArrowRightIcon size={17} /> : null}
             </Button>
           </form>
 
-          <ol className="mt-7 space-y-3 border-t border-white/[0.07] pt-6 text-[13px] text-wave-muted">
-            <li className="flex gap-3">
-              <Step number="1" />
-              <span>Your browser connects to the host and receives a private session.</span>
-            </li>
-            <li className="flex gap-3">
-              <Step number="2" />
-              <span>The video streams directly from the host device in its original quality.</span>
-            </li>
-            <li className="flex gap-3">
-              <Step number="3" />
-              <span>Play, pause and seek stay in sync for everyone — unless the host locks controls.</span>
-            </li>
-          </ol>
-
-          <p className="mt-6 flex items-start gap-2 text-[11px] leading-relaxed text-wave-muted/70">
+          <p className="mt-5 flex items-start gap-2 border-t border-white/[0.06] pt-4 text-[11px] leading-relaxed text-wave-muted/70">
             <LockIcon size={13} className="mt-0.5 shrink-0" />
-            Your session is stored only in this tab. The invite link can be revoked by the host at any time.
+            The invite can be revoked by the host at any time. Nothing is uploaded to a WatchWave
+            server — the video comes straight from the host device.
           </p>
-        </Panel>
+        </Card>
       </main>
     </div>
   )
 }
 
-function Step({ number }: { number: string }) {
+function Step({ number, title, body }: { number: string; title: string; body: string }) {
   return (
-    <span className="grid size-6 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] font-mono text-[11px] text-slate-300">
-      {number}
-    </span>
+    <div className="flex items-start gap-2.5">
+      <span className="grid size-6 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] font-mono text-[10px] text-wave-cyan">
+        {number}
+      </span>
+      <span>
+        <span className="block text-[11px] font-medium text-slate-200">{title}</span>
+        <span className="block text-[10px] text-wave-muted">{body}</span>
+      </span>
+    </div>
   )
 }
