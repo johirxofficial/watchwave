@@ -59,6 +59,23 @@ export function SkipForwardIcon(props: IconProps) {
   )
 }
 
+export function SendIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m22 2-7 20-4-9-9-4Z" />
+      <path d="M22 2 11 13" />
+    </Svg>
+  )
+}
+
+export function ChatIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" />
+    </Svg>
+  )
+}
+
 export function VolumeIcon(props: IconProps) {
   return (
     <Svg {...props}>

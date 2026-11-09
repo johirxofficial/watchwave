@@ -19,21 +19,22 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
- * Runs a user-supplied cloudflared binary as a child process.
+ * Runs a cloudflared binary as a child process.
  *
- * Android can execute a static, Android-compatible Go binary placed in app-writable
- * storage (for example via `adb push` + `chmod 700`), but a stock Linux glibc build
- * will not run on Android's Bionic libc. This provider therefore never bundles a
- * binary and refuses to start until the configured path exists and is executable.
- * Every connection is re-verified over HTTP before it becomes visible in the UI.
+ * The app bundles a static arm64 build in its native library directory for one-tap
+ * Quick Tunnels, while advanced users may still point at their own Android-compatible
+ * executable. A PEM CA bundle is supplied through SSL_CERT_FILE because Android does
+ * not ship the Linux CA file layout Go expects. Every connection is re-verified over
+ * HTTP before it becomes visible in the UI.
  */
 class CloudflaredProcessProvider(
     private val config: TunnelConfig,
     private val scope: CoroutineScope,
     private val verifier: ReachabilityVerifier = HttpReachabilityVerifier(),
+    providerId: String = "cloudflared",
 ) : TunnelProvider {
 
-    override val id: String = "cloudflared"
+    override val id: String = providerId
 
     private val _status = MutableStateFlow(
         TunnelStatus(state = TunnelState.NOT_CONFIGURED, provider = id, message = "cloudflared is not configured"),
@@ -134,6 +135,14 @@ class CloudflaredProcessProvider(
         builder.environment().remove("TUNNEL_TOKEN")
         if (named && config.tunnelToken.isNotBlank()) {
             builder.environment()["TUNNEL_TOKEN"] = config.tunnelToken
+        }
+        if (config.caBundlePath.isNotBlank()) {
+            // Android has no /etc/ssl/certs bundle; Go needs an explicit PEM file.
+            builder.environment()["SSL_CERT_FILE"] = config.caBundlePath
+        }
+        if (config.homeDir.isNotBlank()) {
+            builder.environment()["HOME"] = config.homeDir
+            builder.environment()["TMPDIR"] = config.homeDir
         }
 
         val proc = try {

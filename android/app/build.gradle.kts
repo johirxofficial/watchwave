@@ -75,6 +75,12 @@ android {
     }
 
     packaging {
+        jniLibs {
+            // The bundled cloudflared is a static executable, not a linkable shared
+            // object. Keep it byte-for-byte and extract it so it can be exec'd.
+            useLegacyPackaging = true
+            keepDebugSymbols += "**/libcloudflared.so"
+        }
         resources {
             excludes += setOf(
                 "/META-INF/{AL2.0,LGPL2.1}",

@@ -18,6 +18,9 @@ android/captures/
 # Build web/dist first; do not commit generated copies.
 android/app/src/main/assets/web/
 
+# Local build/test artifacts (including downloaded tunnel test binaries).
+dist/
+
 # Web
 web/node_modules/
 web/dist/
@@ -37,6 +40,7 @@ pnpm-debug.log*
 *.keystore
 *.p12
 *.pem
+!android/app/src/main/assets/tunnel/cacert.pem
 *.key
 secrets.properties
 

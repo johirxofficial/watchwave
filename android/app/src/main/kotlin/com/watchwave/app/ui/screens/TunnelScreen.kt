@@ -47,6 +47,7 @@ import com.watchwave.app.ui.theme.WaveCyan
 import com.watchwave.app.ui.theme.WaveGreen
 import com.watchwave.app.ui.theme.WaveRed
 import com.watchwave.app.ui.theme.WaveViolet
+import com.watchwave.data.settings.TunnelMode
 import com.watchwave.tunnel.TunnelState
 
 @Composable
@@ -59,7 +60,7 @@ fun TunnelScreen(
     val status by container.tunnelManager.status.collectAsStateWithLifecycle()
     val host by container.hostEngine.state.collectAsStateWithLifecycle()
     val settings by container.settings.collectAsStateWithLifecycle()
-    val packageName = androidx.compose.ui.platform.LocalContext.current.packageName
+
 
     val statusColor = when {
         status.state == TunnelState.CONNECTED && status.verified -> WaveGreen
@@ -168,7 +169,7 @@ fun TunnelScreen(
 
             SectionLabel("Current configuration")
             WaveCard {
-                LabeledValue("Mode", settings.tunnelMode.storageValue)
+                LabeledValue("Mode", tunnelModeLabel(settings.tunnelMode))
                 Spacer(Modifier.height(8.dp))
                 if (settings.companionPublicUrl.isNotBlank()) {
                     LabeledValue("Companion URL", settings.companionPublicUrl)
@@ -208,24 +209,25 @@ fun TunnelScreen(
                 )
             }
 
-            SectionLabel("On-device cloudflared")
+            SectionLabel("Instant public link")
             WaveCard {
                 Text(
-                    "Android cannot run a stock Linux cloudflared binary. You must supply a static build compatible with Android's Bionic libc and place it in app-writable storage.",
+                    "No setup. WatchWave bundles Cloudflare's cloudflared for arm64 phones, starts a " +
+                        "free Quick Tunnel when the party starts, and only shows the link after the " +
+                        "health check succeeds.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(10.dp))
-                CodeBlock(
-                    listOf(
-                        "adb push cloudflared-android /sdcard/Download/",
-                        "adb shell run-as $packageName cp /sdcard/Download/cloudflared-android files/cloudflared",
-                        "adb shell run-as $packageName chmod 700 files/cloudflared",
-                        "# set files/cloudflared as the executable path",
-                    ),
-                )
+                LabeledValue("Included binary", "arm64-v8a")
+                Spacer(Modifier.height(8.dp))
+                LabeledValue("Account required", "No")
+                Spacer(Modifier.height(8.dp))
+                LabeledValue("Cost", "Free Quick Tunnel")
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "WatchWave does not bundle a binary and never downloads one silently. A quick tunnel may be used when no token is set; named tunnels use the Keystore-encrypted token.",
+                    "Quick Tunnels are best-effort and may get a new hostname each time. For a " +
+                        "permanent hostname, use a named tunnel token or companion mode. Other ABIs " +
+                        "fall back to LAN, companion, or a custom cloudflared binary.",
                     style = MaterialTheme.typography.labelSmall,
                     color = Muted,
                 )
@@ -243,6 +245,13 @@ fun TunnelScreen(
             )
         }
     }
+}
+
+private fun tunnelModeLabel(mode: TunnelMode): String = when (mode) {
+    TunnelMode.NONE -> "LAN only"
+    TunnelMode.ON_DEVICE -> "Instant public link (bundled)"
+    TunnelMode.COMPANION_URL -> "Companion URL"
+    TunnelMode.CLOUDFLARED_PROCESS -> "Custom cloudflared"
 }
 
 @Composable

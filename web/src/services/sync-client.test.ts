@@ -111,6 +111,19 @@ describe('SyncClient', () => {
     client.close()
   })
 
+  it('sends trimmed chat messages and rejects empty or oversized text', () => {
+    const { client } = buildClient()
+    client.connect()
+    const socket = FakeWebSocket.instances[0]
+    socket.open()
+    expect(client.sendChat('  hello room  ')).toBe(true)
+    expect(socket.lastSent()).toMatchObject({ type: 'CHAT_SEND', roomId: 'abc123', text: 'hello room' })
+    expect(client.sendChat('   ')).toBe(false)
+    expect(client.sendChat('x'.repeat(501))).toBe(false)
+    client.close()
+    expect(client.sendChat('after close')).toBe(false)
+  })
+
   it('answers server pings with the same correlation id', () => {
     const { client } = buildClient()
     client.connect()

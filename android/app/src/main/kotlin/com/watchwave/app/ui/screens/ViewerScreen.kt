@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.watchwave.app.AppContainer
 import com.watchwave.app.net.ConnectionPhase
+import com.watchwave.app.ui.components.ChatPanel
 import com.watchwave.app.ui.components.ConnectedDot
 import com.watchwave.app.ui.components.ErrorBanner
 import com.watchwave.app.ui.components.InfoBanner
@@ -77,6 +78,7 @@ fun ViewerScreen(
     val state by container.viewerEngine.state.collectAsStateWithLifecycle()
     val connection by container.viewerEngine.connection.collectAsStateWithLifecycle()
     val playback by container.viewerEngine.localPlayback.collectAsStateWithLifecycle()
+    val chat by container.viewerEngine.chat.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var confirmLeave by remember { mutableStateOf(false) }
 
@@ -307,6 +309,16 @@ fun ViewerScreen(
                                 if (index != connection.participants.lastIndex) Spacer(Modifier.height(8.dp))
                             }
                         }
+                    }
+
+                    SectionLabel("Chat")
+                    WaveCard {
+                        ChatPanel(
+                            messages = chat,
+                            selfId = connection.self?.id,
+                            connected = connection.phase == ConnectionPhase.LIVE,
+                            onSend = { container.viewerEngine.sendChat(it) },
+                        )
                     }
 
                     OutlinedButton(

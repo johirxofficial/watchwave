@@ -49,6 +49,7 @@ export interface UseWatchPartyResult {
   seek: (positionMs: number) => void
   setSpeed: (speed: number) => void
   ended: (positionMs: number) => void
+  sendChat: (text: string) => boolean
   serverNow: () => number
 }
 
@@ -375,6 +376,20 @@ export function useWatchParty(roomId: string, inviteToken: string | null): UseWa
     [],
   )
 
+  const sendChat = useCallback((text: string): boolean => {
+    const ok = clientRef.current?.sendChat(text) ?? false
+    if (!ok) {
+      dispatch({
+        type: 'notice',
+        notice: {
+          kind: 'warn',
+          message: 'The chat is reconnecting. Your message was not sent; try again in a moment.',
+        },
+      })
+    }
+    return ok
+  }, [])
+
   const play = useCallback((positionMs: number) => send('PLAY', { positionMs }), [send])
   const pause = useCallback((positionMs: number) => send('PAUSE', { positionMs }), [send])
   const seek = useCallback((positionMs: number) => send('SEEK', { positionMs }), [send])
@@ -435,6 +450,7 @@ export function useWatchParty(roomId: string, inviteToken: string | null): UseWa
     seek,
     setSpeed,
     ended,
+    sendChat,
     serverNow,
   }
 }

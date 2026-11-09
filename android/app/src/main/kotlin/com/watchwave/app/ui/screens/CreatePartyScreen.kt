@@ -291,12 +291,14 @@ fun CreatePartyScreen(
 
 private fun tunnelLabel(mode: TunnelMode): String = when (mode) {
     TunnelMode.NONE -> "Local network only"
+    TunnelMode.ON_DEVICE -> "Instant public link"
     TunnelMode.COMPANION_URL -> "Companion Cloudflare URL"
-    TunnelMode.CLOUDFLARED_PROCESS -> "Cloudflared process"
+    TunnelMode.CLOUDFLARED_PROCESS -> "Custom cloudflared"
 }
 
 private fun tunnelDescription(mode: TunnelMode): String = when (mode) {
     TunnelMode.NONE -> "Share the device's LAN address. No public link will be shown."
+    TunnelMode.ON_DEVICE -> "No setup. The bundled tunnel creates a verified HTTPS link when you start."
     TunnelMode.COMPANION_URL -> "Verify a URL forwarded by another machine or Termux."
     TunnelMode.CLOUDFLARED_PROCESS -> "Run a user-supplied cloudflared binary on this phone."
 }

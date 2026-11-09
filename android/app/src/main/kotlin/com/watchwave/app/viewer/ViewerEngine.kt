@@ -14,6 +14,7 @@ import com.watchwave.app.playback.HostStreamingService
 import com.watchwave.app.playback.PlaybackController
 import com.watchwave.app.playback.PlaybackSync
 import com.watchwave.data.settings.AppSettings
+import com.watchwave.shared.protocol.ChatMessageDto
 import com.watchwave.shared.protocol.RoomSummaryDto
 import com.watchwave.shared.sync.DriftConfig
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +59,9 @@ class ViewerEngine(
     private val _localPlayback = MutableStateFlow(LocalPlaybackState())
     val localPlayback: StateFlow<LocalPlaybackState> = _localPlayback.asStateFlow()
 
+    private val _chat = MutableStateFlow<List<ChatMessageDto>>(emptyList())
+    val chat: StateFlow<List<ChatMessageDto>> = _chat.asStateFlow()
+
     private var api: RoomApi? = null
     private var client: RoomClient? = null
     private var playbackSync: PlaybackSync? = null
@@ -74,6 +78,7 @@ class ViewerEngine(
         _state.value = ViewerState(phase = ViewerPhase.JOINING, roomId = link.roomId, baseUrl = link.baseUrl)
         _connection.value = RoomConnectionState(phase = ConnectionPhase.CONNECTING)
         _localPlayback.value = LocalPlaybackState()
+        _chat.value = emptyList()
         activeSettings = settings
 
         return runCatching {
@@ -156,6 +161,7 @@ class ViewerEngine(
         _state.value = ViewerState(phase = ViewerPhase.IDLE)
         _connection.value = RoomConnectionState(phase = ConnectionPhase.IDLE)
         _localPlayback.value = LocalPlaybackState()
+        _chat.value = emptyList()
         appLog.log("Left the viewer session")
     }
 
@@ -174,6 +180,8 @@ class ViewerEngine(
     fun setPlaybackSpeed(speed: Float) {
         playbackSync?.setSpeed(speed)
     }
+
+    fun sendChat(text: String): Boolean = client?.sendChat(text) == true
 
     fun canControlPlayback(): Boolean = playbackSync?.canControl() == true
 
@@ -196,6 +204,7 @@ class ViewerEngine(
                 }
             },
             scope.launch { sync.state.collect { _localPlayback.value = it } },
+            scope.launch { client.chat.collect { _chat.value = it } },
         )
     }
 

@@ -40,7 +40,14 @@ enum class MessageType {
     MEDIA_CHANGED,
     CONTROL_POLICY,
     ROOM_INFO,
+    CHAT_SEND,
+    CHAT_MESSAGE,
+    CHAT_HISTORY,
 }
+
+/** Server-enforced chat limits, shared by the Android and browser clients. */
+const val CHAT_MAX_LENGTH: Int = 500
+const val CHAT_HISTORY_LIMIT: Int = 100
 
 @Serializable
 enum class RoomStatus { ACTIVE, CLOSED, EXPIRED }
@@ -56,6 +63,16 @@ data class ParticipantDto(
     val connected: Boolean = true,
     val joinedAt: Long = 0L,
     val controlsAllowed: Boolean = true,
+)
+
+@Serializable
+data class ChatMessageDto(
+    val messageId: String,
+    val participantId: String,
+    val displayName: String,
+    val text: String,
+    val sentAt: Long,
+    val isHost: Boolean = false,
 )
 
 @Serializable
@@ -263,6 +280,7 @@ data class SyncMessage(
     val expectedSequence: Long? = null,
     val retryAfterMs: Long? = null,
     val text: String? = null,
+    val chatMessages: List<ChatMessageDto>? = null,
 )
 
 object SyncJson {
@@ -302,5 +320,7 @@ object ErrorCodes {
     const val RANGE_NOT_SATISFIABLE = "RANGE_NOT_SATISFIABLE"
     const val TUNNEL_NOT_READY = "TUNNEL_NOT_READY"
     const val HOST_OFFLINE = "HOST_OFFLINE"
+    const val CHAT_EMPTY = "CHAT_EMPTY"
+    const val CHAT_TOO_LONG = "CHAT_TOO_LONG"
     const val INTERNAL_ERROR = "INTERNAL_ERROR"
 }

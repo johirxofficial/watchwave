@@ -17,6 +17,7 @@
         android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.WatchWave"
+        android:extractNativeLibs="true"
         android:usesCleartextTraffic="true">
 
         <activity

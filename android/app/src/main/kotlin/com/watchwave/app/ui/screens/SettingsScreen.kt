@@ -170,22 +170,31 @@ fun SettingsScreen(
             WaveCard {
                 Text("Reachability mode", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = tunnelMode == TunnelMode.NONE,
-                        onClick = { tunnelMode = TunnelMode.NONE },
-                        label = { Text("LAN only") },
-                    )
-                    FilterChip(
-                        selected = tunnelMode == TunnelMode.COMPANION_URL,
-                        onClick = { tunnelMode = TunnelMode.COMPANION_URL },
-                        label = { Text("Companion") },
-                    )
-                    FilterChip(
-                        selected = tunnelMode == TunnelMode.CLOUDFLARED_PROCESS,
-                        onClick = { tunnelMode = TunnelMode.CLOUDFLARED_PROCESS },
-                        label = { Text("cloudflared") },
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = tunnelMode == TunnelMode.ON_DEVICE,
+                            onClick = { tunnelMode = TunnelMode.ON_DEVICE },
+                            label = { Text("Instant public") },
+                        )
+                        FilterChip(
+                            selected = tunnelMode == TunnelMode.NONE,
+                            onClick = { tunnelMode = TunnelMode.NONE },
+                            label = { Text("LAN only") },
+                        )
+                        FilterChip(
+                            selected = tunnelMode == TunnelMode.COMPANION_URL,
+                            onClick = { tunnelMode = TunnelMode.COMPANION_URL },
+                            label = { Text("Companion") },
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = tunnelMode == TunnelMode.CLOUDFLARED_PROCESS,
+                            onClick = { tunnelMode = TunnelMode.CLOUDFLARED_PROCESS },
+                            label = { Text("Custom cloudflared") },
+                        )
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
 
@@ -195,6 +204,21 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = Muted,
                     )
+
+                    TunnelMode.ON_DEVICE -> {
+                        Text(
+                            "No setup and no account. When you start a party, WatchWave launches the " +
+                                "bundled Cloudflare Quick Tunnel on this phone and shares the verified HTTPS link.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Muted,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        InfoBanner(
+                            "Bundled for arm64 phones. On other devices use LAN, a companion URL, " +
+                                "or a custom cloudflared binary.",
+                            color = WaveAmber,
+                        )
+                    }
 
                     TunnelMode.COMPANION_URL -> {
                         OutlinedTextField(

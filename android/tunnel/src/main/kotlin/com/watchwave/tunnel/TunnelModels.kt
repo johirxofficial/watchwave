@@ -2,7 +2,7 @@ package com.watchwave.tunnel
 
 import kotlinx.coroutines.flow.StateFlow
 
-enum class TunnelMode { NONE, COMPANION_URL, CLOUDFLARED_PROCESS }
+enum class TunnelMode { NONE, ON_DEVICE, COMPANION_URL, CLOUDFLARED_PROCESS }
 
 enum class TunnelState {
     NOT_CONFIGURED,
@@ -32,6 +32,10 @@ data class TunnelConfig(
     val tunnelToken: String = "",
     val namedHostname: String = "",
     val companionUrl: String = "",
+    /** Set for the bundled executable so Go can trust the public TLS endpoints. */
+    val caBundlePath: String = "",
+    /** Optional writable HOME for cloudflared state and logs. */
+    val homeDir: String = "",
     val healthPath: String = "/api/v1/health",
     val verifyTimeoutMs: Long = 45_000L,
     val quickTunnelArgs: List<String> = listOf("tunnel", "--no-autoupdate", "--url"),

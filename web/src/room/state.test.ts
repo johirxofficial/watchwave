@@ -176,6 +176,67 @@ describe('party state', () => {
     expect(closed.hostOffline).toBe(false)
   })
 
+  it('seeds chat history and appends new messages without duplicates', () => {
+    const history = sync(liveState(), {
+      type: 'CHAT_HISTORY',
+      chatMessages: [
+        {
+          messageId: 'c1',
+          participantId: 'p_host',
+          displayName: 'Johir',
+          text: 'Welcome!',
+          sentAt: 1_000,
+          isHost: true,
+        },
+      ],
+    })
+    expect(history.chat).toHaveLength(1)
+    expect(history.chat[0]?.text).toBe('Welcome!')
+
+    const appended = sync(history, {
+      type: 'CHAT_MESSAGE',
+      chatMessages: [
+        {
+          messageId: 'c2',
+          participantId: 'p_viewer',
+          displayName: 'Maya',
+          text: 'Great scene',
+          sentAt: 2_000,
+        },
+        {
+          messageId: 'c2',
+          participantId: 'p_viewer',
+          displayName: 'Maya',
+          text: 'Great scene',
+          sentAt: 2_000,
+        },
+      ],
+    })
+    expect(appended.chat.map((message) => message.messageId)).toEqual(['c1', 'c2'])
+  })
+
+  it('clears chat when a fresh join handshake completes', () => {
+    const withChat = sync(liveState(), {
+      type: 'CHAT_MESSAGE',
+      chatMessages: [
+        {
+          messageId: 'c1',
+          participantId: 'p_viewer',
+          displayName: 'Maya',
+          text: 'Hello',
+          sentAt: 1_000,
+        },
+      ],
+    })
+    const acked = sync(withChat, {
+      type: 'JOIN_ACK',
+      participantId: 'p_viewer',
+      participants: [{ id: 'p_viewer', displayName: 'Maya' }],
+      isHost: false,
+    })
+    expect(acked.chat).toEqual([])
+  })
+
   it('surfaces command errors from the host', () => {
     const rejected = sync(liveState(), {
       type: 'ERROR',

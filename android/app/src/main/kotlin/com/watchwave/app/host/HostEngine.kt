@@ -16,6 +16,7 @@ import com.watchwave.app.security.SecureStore
 import com.watchwave.data.db.VideoMetadataEntity
 import com.watchwave.data.settings.AppSettings
 import com.watchwave.data.settings.TunnelMode as SettingsTunnelMode
+import com.watchwave.shared.protocol.ChatMessageDto
 import com.watchwave.shared.protocol.CreateRoomRequest
 import com.watchwave.shared.protocol.ErrorCodes
 import com.watchwave.shared.protocol.MediaDescriptorDto
@@ -54,6 +55,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.ServerSocket
 import java.util.concurrent.ConcurrentHashMap
 
@@ -119,6 +121,9 @@ class HostEngine(
     private val _stats = MutableStateFlow(UploadStatsDto())
     val stats: StateFlow<UploadStatsDto> = _stats.asStateFlow()
 
+    private val _chat = MutableStateFlow<List<ChatMessageDto>>(emptyList())
+    val chat: StateFlow<List<ChatMessageDto>> = _chat.asStateFlow()
+
     private var server: WatchWaveServer? = null
     private var statsTracker: StreamingStats? = null
     private var client: RoomClient? = null
@@ -145,6 +150,7 @@ class HostEngine(
         _state.value = HostState(phase = HostPhase.STARTING)
         _connection.value = RoomConnectionState(phase = ConnectionPhase.CONNECTING)
         _localPlayback.value = LocalPlaybackState()
+        _chat.value = emptyList()
         activeSettings = settings
 
         return runCatching {
@@ -278,6 +284,7 @@ class HostEngine(
         _state.value = HostState(phase = HostPhase.IDLE)
         _connection.value = RoomConnectionState(phase = ConnectionPhase.IDLE)
         _localPlayback.value = LocalPlaybackState()
+        _chat.value = emptyList()
         _stats.value = UploadStatsDto()
     }
 
@@ -372,6 +379,8 @@ class HostEngine(
         playbackSync?.setSpeed(speed)
     }
 
+    fun sendChat(text: String): Boolean = client?.sendChat(text) == true
+
     fun canControlPlayback(): Boolean = playbackSync?.canControl() == true
 
     fun activeConnections(): Int {
@@ -443,6 +452,9 @@ class HostEngine(
             },
             scope.launch {
                 sync.state.collect { _localPlayback.value = it }
+            },
+            scope.launch {
+                client.chat.collect { _chat.value = it }
             },
             scope.launch {
                 tunnelManager.status.collect { applyTunnelStatus(it) }
@@ -574,6 +586,14 @@ class HostEngine(
 
     private fun buildTunnelConfig(settings: AppSettings): TunnelConfig = when (settings.tunnelMode) {
         SettingsTunnelMode.NONE -> TunnelConfig(mode = ProviderTunnelMode.NONE)
+
+        SettingsTunnelMode.ON_DEVICE -> TunnelConfig(
+            mode = ProviderTunnelMode.ON_DEVICE,
+            executablePath = embeddedExecutablePath(),
+            caBundlePath = embeddedCaBundlePath(),
+            homeDir = context.filesDir.absolutePath,
+        )
+
         SettingsTunnelMode.COMPANION_URL -> TunnelConfig(
             mode = ProviderTunnelMode.COMPANION_URL,
             companionUrl = settings.companionPublicUrl,
@@ -585,6 +605,33 @@ class HostEngine(
             tunnelToken = secureStore.get(SecureStore.CLOUDFLARED_TOKEN).orEmpty(),
             namedHostname = settings.namedTunnelHostname,
         )
+    }
+
+    /**
+     * The bundled cloudflared is packaged as a native library so Android extracts it
+     * into the executable, read-only nativeLibraryDir. No arbitrary path is accepted
+     * here; the path always points inside this app's install directory.
+     */
+    private fun embeddedExecutablePath(): String =
+        File(context.applicationInfo.nativeLibraryDir, "libcloudflared.so").absolutePath
+
+    /**
+     * Go cannot read Android's hashed system CA directory. Extract the Mozilla bundle
+     * shipped in assets and hand it to cloudflared through SSL_CERT_FILE.
+     */
+    private fun embeddedCaBundlePath(): String {
+        val target = File(context.filesDir, "tunnel/cacert.pem")
+        if (!target.isFile || target.length() < 10_000L) {
+            runCatching {
+                target.parentFile?.mkdirs()
+                context.assets.open("tunnel/cacert.pem").use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                }
+            }.onFailure { error ->
+                appLog.log("Could not extract the tunnel CA bundle: ${error.message}")
+            }
+        }
+        return target.absolutePath
     }
 
     private fun currentDriftConfig(): DriftConfig {

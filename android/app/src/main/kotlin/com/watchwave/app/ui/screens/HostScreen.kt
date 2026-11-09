@@ -58,6 +58,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.watchwave.app.AppContainer
 import com.watchwave.app.host.HostPhase
 import com.watchwave.app.net.ConnectionPhase
+import com.watchwave.app.ui.components.ChatPanel
 import com.watchwave.app.ui.components.ConnectedDot
 import com.watchwave.app.ui.components.ErrorBanner
 import com.watchwave.app.ui.components.InfoBanner
@@ -99,6 +100,7 @@ fun HostScreen(
     val connection by container.hostEngine.connection.collectAsStateWithLifecycle()
     val playback by container.hostEngine.localPlayback.collectAsStateWithLifecycle()
     val stats by container.hostEngine.stats.collectAsStateWithLifecycle()
+    val chat by container.hostEngine.chat.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var confirmEnd by remember { mutableStateOf(false) }
     var confirmRotate by remember { mutableStateOf(false) }
@@ -350,6 +352,16 @@ fun HostScreen(
                                 }
                             }
                         }
+                    }
+
+                    SectionLabel("Chat")
+                    WaveCard {
+                        ChatPanel(
+                            messages = chat,
+                            selfId = connection.self?.id,
+                            connected = connection.phase == ConnectionPhase.LIVE,
+                            onSend = { container.hostEngine.sendChat(it) },
+                        )
                     }
 
                     SectionLabel("Live upload")

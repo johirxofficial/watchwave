@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.map
 
 enum class TunnelMode(val storageValue: String) {
     NONE("none"),
+    ON_DEVICE("on_device"),
     COMPANION_URL("companion"),
     CLOUDFLARED_PROCESS("cloudflared"),
     ;
@@ -29,7 +30,7 @@ data class AppSettings(
     val serverPort: Int = 8080,
     val maxParticipants: Int = 10,
     val roomTtlMinutes: Int = 360,
-    val tunnelMode: TunnelMode = TunnelMode.NONE,
+    val tunnelMode: TunnelMode = TunnelMode.ON_DEVICE,
     val companionPublicUrl: String = "",
     val cloudflaredPath: String = "",
     val namedTunnelHostname: String = "",
@@ -51,7 +52,7 @@ class SettingsRepository(private val context: Context) {
             serverPort = (prefs[Keys.SERVER_PORT] ?: defaults.serverPort).coerceIn(1024, 65535),
             maxParticipants = (prefs[Keys.MAX_PARTICIPANTS] ?: defaults.maxParticipants).coerceIn(2, 50),
             roomTtlMinutes = (prefs[Keys.ROOM_TTL] ?: defaults.roomTtlMinutes).coerceIn(5, 1440),
-            tunnelMode = TunnelMode.from(prefs[Keys.TUNNEL_MODE]),
+            tunnelMode = prefs[Keys.TUNNEL_MODE]?.let(TunnelMode::from) ?: defaults.tunnelMode,
             companionPublicUrl = prefs[Keys.COMPANION_URL] ?: defaults.companionPublicUrl,
             cloudflaredPath = prefs[Keys.CLOUDFLARED_PATH] ?: defaults.cloudflaredPath,
             namedTunnelHostname = prefs[Keys.NAMED_HOSTNAME] ?: defaults.namedTunnelHostname,

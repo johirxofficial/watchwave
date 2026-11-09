@@ -2,6 +2,7 @@ package com.watchwave.streaming
 
 import com.watchwave.shared.protocol.API_PREFIX
 import com.watchwave.shared.protocol.CreateRoomRequest
+import com.watchwave.shared.protocol.ErrorCodes
 import com.watchwave.shared.protocol.MediaDescriptorDto
 import com.watchwave.shared.protocol.MessageType
 import com.watchwave.shared.protocol.SyncJson
@@ -177,6 +178,79 @@ class WatchWaveWebSocketTest {
     }
 
     @Test
+    fun `a viewer can chat and the next viewer receives history`() = testApplication {
+        application { server.installModuleOn(this) }
+        val join = rooms.join(created.snapshot.roomId, created.inviteToken, "Viewer")
+        val session = (join as RoomResult.Success).value
+        val wsClient = createClient { install(WebSockets) }
+
+        wsClient.webSocket(
+            "$API_PREFIX/rooms/${created.snapshot.roomId}/sync?token=${session.sessionToken}",
+        ) {
+            assertEquals(MessageType.JOIN_ACK, decodeNext().type)
+            assertEquals(MessageType.STATE_UPDATE, decodeNext().type)
+
+            send(
+                Frame.Text(
+                    SyncJson.encode(
+                        SyncMessage(
+                            type = MessageType.CHAT_SEND,
+                            roomId = created.snapshot.roomId,
+                            text = "  hello room  ",
+                        ),
+                    ),
+                ),
+            )
+            val chat = awaitMessage(MessageType.CHAT_MESSAGE)
+            val chatMessage = chat.chatMessages?.single()
+            assertNotNull(chatMessage)
+            assertEquals("hello room", chatMessage?.text)
+            assertEquals("Viewer", chatMessage?.displayName)
+            assertEquals(session.participant.id, chatMessage?.participantId)
+            assertEquals(false, chatMessage?.isHost)
+            assertNotNull(chatMessage?.messageId)
+            assertTrue((chatMessage?.sentAt ?: 0L) > 0L)
+        }
+
+        val joinSecond = rooms.join(created.snapshot.roomId, created.inviteToken, "Second")
+        val second = (joinSecond as RoomResult.Success).value
+        wsClient.webSocket(
+            "$API_PREFIX/rooms/${created.snapshot.roomId}/sync?token=${second.sessionToken}",
+        ) {
+            assertEquals(MessageType.JOIN_ACK, decodeNext().type)
+            assertEquals(MessageType.STATE_UPDATE, decodeNext().type)
+            val history = decodeNext()
+            assertEquals(MessageType.CHAT_HISTORY, history.type)
+            assertEquals("hello room", history.chatMessages?.single()?.text)
+        }
+    }
+
+    @Test
+    fun `empty chat is rejected with a stable error code`() = testApplication {
+        application { server.installModuleOn(this) }
+        val wsClient = createClient { install(WebSockets) }
+        val roomId = created.snapshot.roomId
+
+        wsClient.webSocket("$API_PREFIX/rooms/$roomId/sync?token=${created.hostSessionToken}") {
+            assertEquals(MessageType.JOIN_ACK, decodeNext().type)
+            assertEquals(MessageType.STATE_UPDATE, decodeNext().type)
+            send(
+                Frame.Text(
+                    SyncJson.encode(
+                        SyncMessage(
+                            type = MessageType.CHAT_SEND,
+                            roomId = roomId,
+                            text = "   ",
+                        ),
+                    ),
+                ),
+            )
+            val error = awaitMessage(MessageType.ERROR)
+            assertEquals(ErrorCodes.CHAT_EMPTY, error.errorCode)
+        }
+    }
+
+    @Test
     fun `an invalid token is rejected`() = testApplication {
         application { server.installModuleOn(this) }
         val wsClient = createClient { install(WebSockets) }
@@ -199,6 +273,16 @@ class WatchWaveWebSocketTest {
             val frame = incoming.receive()
             check(frame is Frame.Text) { "Expected a text frame" }
             SyncJson.decode(frame.readText())
+        }
+
+    private suspend fun io.ktor.websocket.WebSocketSession.awaitMessage(type: MessageType): SyncMessage =
+        withTimeout(5_000L) {
+            while (true) {
+                val message = decodeNext()
+                if (message.type == type) return@withTimeout message
+            }
+            @Suppress("UNREACHABLE_CODE")
+            error("unreachable")
         }
 
     private suspend fun io.ktor.websocket.WebSocketSession.awaitState(

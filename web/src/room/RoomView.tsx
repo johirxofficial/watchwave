@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Brand } from '../components/Brand'
+import { ChatPanel } from '../components/ChatPanel'
 import { ConnectionBadge } from '../components/ConnectionBadge'
 import {
   CrownIcon,
@@ -152,6 +153,13 @@ export function RoomView({ roomId, party, onLeave }: RoomViewProps) {
         </section>
 
         <aside className="space-y-3">
+          <ChatPanel
+            messages={state.chat}
+            selfId={state.self?.id}
+            connected={party.connection === 'live'}
+            onSend={party.sendChat}
+          />
+
           <Panel className="p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-[12px] font-semibold uppercase tracking-[0.14em] text-wave-muted">Connection</h2>

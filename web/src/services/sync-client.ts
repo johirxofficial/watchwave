@@ -1,6 +1,6 @@
 import { buildWebSocketUrl } from '../lib/api'
 import type { ServerClock } from '../lib/clock'
-import type { CommandAction, SyncMessage } from '../lib/protocol'
+import { CHAT_MAX_LENGTH, type CommandAction, type SyncMessage } from '../lib/protocol'
 
 export type ConnectionPhase = 'connecting' | 'live' | 'reconnecting' | 'closed' | 'failed'
 
@@ -99,6 +99,19 @@ export class SyncClient {
       ...(payload.playbackSpeed !== undefined ? { playbackSpeed: payload.playbackSpeed } : {}),
     }
     return this.send(message)
+  }
+
+  /** Chat is independent of playback control policy; every participant may send. */
+  sendChat(text: string): boolean {
+    if (!this.canSend()) return false
+    const trimmed = text.trim()
+    if (trimmed.length === 0 || trimmed.length > CHAT_MAX_LENGTH) return false
+    return this.send({
+      type: 'CHAT_SEND',
+      roomId: this.options.roomId,
+      text: trimmed,
+      clientTimestamp: Date.now(),
+    })
   }
 
   private openSocket(): void {

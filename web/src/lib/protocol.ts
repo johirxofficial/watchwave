@@ -30,6 +30,21 @@ export type MessageType =
   | 'MEDIA_CHANGED'
   | 'CONTROL_POLICY'
   | 'ROOM_INFO'
+  | 'CHAT_SEND'
+  | 'CHAT_MESSAGE'
+  | 'CHAT_HISTORY'
+
+export const CHAT_MAX_LENGTH = 500
+export const CHAT_HISTORY_LIMIT = 100
+
+export interface ChatMessage {
+  messageId: string
+  participantId: string
+  displayName: string
+  text: string
+  sentAt: number
+  isHost?: boolean
+}
 
 export type RoomStatus = 'ACTIVE' | 'CLOSED' | 'EXPIRED'
 export type CommandAction = 'PLAY' | 'PAUSE' | 'SEEK' | 'SET_SPEED' | 'ENDED'
@@ -155,6 +170,7 @@ export interface SyncMessage {
   expectedSequence?: number
   retryAfterMs?: number
   text?: string
+  chatMessages?: ChatMessage[]
 }
 
 export function participantWithDefaults(participant: Participant): Required<Participant> {

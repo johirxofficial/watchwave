@@ -37,6 +37,10 @@ class TunnelManager(private val scope: CoroutineScope) {
                 return
             }
 
+            TunnelMode.ON_DEVICE -> {
+                provider = CloudflaredProcessProvider(config, scope, providerId = "built-in")
+            }
+
             TunnelMode.COMPANION_URL -> {
                 provider = CompanionUrlProvider(config, scope)
             }

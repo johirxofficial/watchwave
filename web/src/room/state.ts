@@ -1,4 +1,6 @@
 import {
+  CHAT_HISTORY_LIMIT,
+  type ChatMessage,
   type JoinResponse,
   type Participant,
   type RoomSummary,
@@ -35,6 +37,7 @@ export interface PartyState {
   controlsLocked: boolean
   hostOffline: boolean
   playback: PlaybackAnchor | null
+  chat: ChatMessage[]
   notice: Notice | null
   closedMessage: string | null
 }
@@ -49,6 +52,7 @@ export const initialPartyState: PartyState = {
   controlsLocked: false,
   hostOffline: false,
   playback: null,
+  chat: [],
   notice: null,
   closedMessage: null,
 }
@@ -77,6 +81,7 @@ export function partyReducer(state: PartyState, action: PartyAction): PartyState
         isHost: self.isHost,
         controlsLocked: locked,
         canControl: self.isHost || (!locked && (action.response.canControl ?? true)),
+        chat: [],
       }
     }
     case 'sync':
@@ -103,6 +108,7 @@ export function applySyncMessage(state: PartyState, message: SyncMessage, server
         controlsLocked: locked,
         canControl: isHost || (!locked && (message.canControl ?? true)),
         hostOffline: false,
+        chat: [],
         notice: null,
       }
     }
@@ -210,6 +216,27 @@ export function applySyncMessage(state: PartyState, message: SyncMessage, server
           code: message.errorCode,
         },
       }
+
+    case 'CHAT_HISTORY': {
+      return {
+        ...state,
+        chat: (message.chatMessages ?? []).slice(-CHAT_HISTORY_LIMIT),
+      }
+    }
+
+    case 'CHAT_MESSAGE': {
+      const incoming = message.chatMessages ?? []
+      if (incoming.length === 0) return state
+      const seen = new Set(state.chat.map((item) => item.messageId))
+      const next = [...state.chat]
+      for (const item of incoming) {
+        if (!seen.has(item.messageId)) {
+          seen.add(item.messageId)
+          next.push(item)
+        }
+      }
+      return { ...state, chat: next.slice(-CHAT_HISTORY_LIMIT) }
+    }
 
     case 'ERROR': {
       const code = message.errorCode

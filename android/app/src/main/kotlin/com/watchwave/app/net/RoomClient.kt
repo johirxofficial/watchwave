@@ -1,5 +1,8 @@
 package com.watchwave.app.net
 
+import com.watchwave.shared.protocol.CHAT_HISTORY_LIMIT
+import com.watchwave.shared.protocol.CHAT_MAX_LENGTH
+import com.watchwave.shared.protocol.ChatMessageDto
 import com.watchwave.shared.protocol.LeaveRequest
 import com.watchwave.shared.protocol.MediaTokenResponse
 import com.watchwave.shared.protocol.MessageType
@@ -97,6 +100,9 @@ class RoomClient(
     private val _serverOffset = MutableStateFlow(0L)
     val serverOffsetMs: StateFlow<Long> = _serverOffset.asStateFlow()
 
+    private val _chat = MutableStateFlow<List<ChatMessageDto>>(emptyList())
+    val chat: StateFlow<List<ChatMessageDto>> = _chat.asStateFlow()
+
     private val _events = MutableSharedFlow<SyncMessage>(
         extraBufferCapacity = 32,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -143,6 +149,31 @@ class RoomClient(
     fun ended(positionMs: Long): Boolean =
         sendCommand(command(MessageType.ENDED, positionMs = positionMs, speed = 1f))
 
+    /**
+     * Chat is available to every participant, regardless of playback control policy.
+     * The server remains authoritative about sender identity and timestamps.
+     */
+    fun sendChat(text: String): Boolean {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty() || trimmed.length > CHAT_MAX_LENGTH) return false
+        if (closed.get() || _connection.value.phase != ConnectionPhase.LIVE) return false
+        scope.launch {
+            val session = socket ?: return@launch
+            runCatching {
+                sendFrame(
+                    session,
+                    SyncMessage(
+                        type = MessageType.CHAT_SEND,
+                        roomId = roomId,
+                        text = trimmed,
+                        clientTimestamp = System.currentTimeMillis(),
+                    ),
+                )
+            }
+        }
+        return true
+    }
+
     suspend fun refreshMediaToken(): Boolean {
         if (closed.get()) return false
         val response = http.post("$baseUrl/api/v1/rooms/$roomId/media-token") {
@@ -176,6 +207,7 @@ class RoomClient(
         tokenJob = null
         socket = null
         runCatching { http.close() }
+        _chat.value = emptyList()
         _connection.update { it.copy(phase = ConnectionPhase.ENDED) }
     }
 
@@ -285,6 +317,19 @@ class RoomClient(
                         controlsLocked = locked,
                         message = null,
                     )
+                }
+                _chat.value = emptyList()
+            }
+
+            MessageType.CHAT_HISTORY -> {
+                _chat.value = (message.chatMessages ?: emptyList()).takeLast(CHAT_HISTORY_LIMIT)
+            }
+
+            MessageType.CHAT_MESSAGE -> {
+                val incoming = message.chatMessages ?: return
+                _chat.update { current ->
+                    val seen = current.mapTo(HashSet()) { it.messageId }
+                    (current + incoming.filter { seen.add(it.messageId) }).takeLast(CHAT_HISTORY_LIMIT)
                 }
             }
 

@@ -1,5 +1,8 @@
 package com.watchwave.streaming
 
+import com.watchwave.shared.protocol.CHAT_HISTORY_LIMIT
+import com.watchwave.shared.protocol.CHAT_MAX_LENGTH
+import com.watchwave.shared.protocol.ChatMessageDto
 import com.watchwave.shared.protocol.CommandAction
 import com.watchwave.shared.protocol.ErrorCodes
 import com.watchwave.shared.protocol.MessageType
@@ -31,6 +34,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.ArrayDeque
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -57,6 +62,8 @@ class WebSocketHub(
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val connections = ConcurrentHashMap<String, ConcurrentHashMap<String, Connection>>()
+    private val chatHistory = ConcurrentHashMap<String, ArrayDeque<ChatMessageDto>>()
+    private val chatHistoryMutex = Mutex()
 
     fun connectionCount(roomId: String): Int = connections[roomId]?.size ?: 0
 
@@ -84,6 +91,7 @@ class WebSocketHub(
         rooms.setParticipantConnected(roomId, participant.id, true)
 
         val limiter = SlidingWindowRateLimiter(maxEvents = 60, windowMs = 10_000L)
+        val chatLimiter = SlidingWindowRateLimiter(maxEvents = 10, windowMs = 10_000L)
         val heartbeat = scope.launch { heartbeatLoop(connection) }
 
         try {
@@ -103,6 +111,7 @@ class WebSocketHub(
                 ),
             )
             sendState(connection, engine)
+            sendChatHistory(connection)
             broadcastParticipants(roomId)
             broadcast(
                 roomId,
@@ -157,6 +166,8 @@ class WebSocketHub(
                     MessageType.SET_SPEED,
                     MessageType.ENDED,
                     -> handleCommand(connection, engine, message)
+
+                    MessageType.CHAT_SEND -> handleChat(connection, message, chatLimiter)
 
                     else -> sendError(
                         connection,
@@ -273,6 +284,7 @@ class WebSocketHub(
             ),
         )
         closeRoomConnections(roomId, CloseReason.Codes.NORMAL, text)
+        chatHistory.remove(roomId)
     }
 
     /** Closes an existing socket without treating it as a host action. */
@@ -328,6 +340,7 @@ class WebSocketHub(
     fun stop() {
         val snapshot = connections.values.flatMap { it.values }
         connections.clear()
+        chatHistory.clear()
         scope.cancel()
         kotlinx.coroutines.runBlocking {
             snapshot.forEach { connection ->
@@ -338,6 +351,82 @@ class WebSocketHub(
                 }
             }
         }
+    }
+
+    private suspend fun handleChat(
+        connection: Connection,
+        message: SyncMessage,
+        chatLimiter: SlidingWindowRateLimiter,
+    ) {
+        val now = clock.monoMs()
+        if (!chatLimiter.tryAcquire(now)) {
+            sendError(
+                connection,
+                ErrorCodes.RATE_LIMITED,
+                "You are sending messages too quickly. Wait a moment and try again.",
+                retryAfterMs = chatLimiter.retryAfterMs(now),
+            )
+            return
+        }
+        val text = message.text?.trim().orEmpty()
+        if (text.isEmpty()) {
+            sendError(connection, ErrorCodes.CHAT_EMPTY, "Chat messages cannot be empty.")
+            return
+        }
+        if (text.length > CHAT_MAX_LENGTH) {
+            sendError(
+                connection,
+                ErrorCodes.CHAT_TOO_LONG,
+                "Chat messages are limited to $CHAT_MAX_LENGTH characters.",
+            )
+            return
+        }
+        val participant = roomManager().participant(connection.roomId, connection.participantId)
+        if (participant == null) {
+            sendError(connection, ErrorCodes.UNAUTHORIZED, "Participant is no longer in the room.")
+            return
+        }
+        val chat = ChatMessageDto(
+            messageId = UUID.randomUUID().toString(),
+            participantId = participant.id,
+            displayName = participant.displayName,
+            text = text,
+            sentAt = clock.wallMs(),
+            isHost = participant.isHost,
+        )
+        chatHistoryMutex.withLock {
+            val history = chatHistory.computeIfAbsent(connection.roomId) { ArrayDeque() }
+            history.addLast(chat)
+            while (history.size > CHAT_HISTORY_LIMIT) history.removeFirst()
+        }
+        broadcast(
+            connection.roomId,
+            SyncMessage(
+                type = MessageType.CHAT_MESSAGE,
+                roomId = connection.roomId,
+                participantId = chat.participantId,
+                displayName = chat.displayName,
+                isHost = chat.isHost,
+                serverTime = clock.wallMs(),
+                chatMessages = listOf(chat),
+            ),
+        )
+    }
+
+    private suspend fun sendChatHistory(connection: Connection) {
+        val messages = chatHistoryMutex.withLock {
+            chatHistory[connection.roomId]?.toList() ?: emptyList()
+        }
+        if (messages.isEmpty()) return
+        send(
+            connection,
+            SyncMessage(
+                type = MessageType.CHAT_HISTORY,
+                roomId = connection.roomId,
+                serverTime = clock.wallMs(),
+                chatMessages = messages,
+            ),
+        )
     }
 
     private suspend fun handleCommand(connection: Connection, engine: SyncEngine, message: SyncMessage) {
