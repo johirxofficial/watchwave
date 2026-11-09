@@ -198,7 +198,20 @@ class WatchWaveServerTest {
         val roomId = created.snapshot.roomId
         val response = client.head("$API_PREFIX/rooms/$roomId/video?t=${tokenForHost()}")
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals("4096", response.headers[HttpHeaders.ContentLength])
+        assertEquals(listOf("4096"), response.headers.getAll(HttpHeaders.ContentLength))
+        assertEquals(0, response.body<ByteArray>().size)
+    }
+
+    @Test
+    fun `head range returns partial metadata with one content length`() = testApplication {
+        application { server.installModuleOn(this) }
+        val roomId = created.snapshot.roomId
+        val response = client.head("$API_PREFIX/rooms/$roomId/video?t=${tokenForHost()}") {
+            header(HttpHeaders.Range, "bytes=100-199")
+        }
+        assertEquals(HttpStatusCode.PartialContent, response.status)
+        assertEquals(listOf("100"), response.headers.getAll(HttpHeaders.ContentLength))
+        assertEquals("bytes 100-199/4096", response.headers["Content-Range"])
         assertEquals(0, response.body<ByteArray>().size)
     }
 

@@ -32,6 +32,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.OutgoingContent
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
@@ -655,8 +656,16 @@ class WatchWaveServer(
         } ?: ContentType.Application.OctetStream
 
         if (headOnly) {
-            call.response.header(HttpHeaders.ContentLength, length.toString())
-            call.respond(status)
+            // Do not set Content-Length on the response and then call respond(status):
+            // Ktor's status-only content length is 0, which produces two Content-Length
+            // headers. Go through OutgoingContent so the engine emits exactly one.
+            call.respond(
+                object : OutgoingContent.NoContent() {
+                    override val status: HttpStatusCode = status
+                    override val contentType: ContentType = contentType
+                    override val contentLength: Long = length
+                },
+            )
             return
         }
 
