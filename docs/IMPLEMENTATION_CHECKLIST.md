@@ -22,8 +22,8 @@ Legend:
 | Controls can be locked | host controls endpoint + hub broadcast | ✅ policy logic tested; 🟡 UI/device flow not |
 | WebSocket playback sync | `WebSocketHub`, 15 s heartbeat, state broadcasts | ✅ 4 integration tests (including heartbeat pong) |
 | Clock/drift correction | `DriftController`, `expectedPositionMs`, browser port | ✅ shared + web tests |
-| Tunnel abstraction | `TunnelManager`, companion + cloudflared providers | 🟡 code + health verification; ⛔ no real Cloudflare run |
-| HTTPS share link | verified `TunnelStatus.activeUrl`, `ShareLinks` | 🟡 only after real tunnel verification |
+| Tunnel abstraction | `TunnelManager`, companion + cloudflared providers | ✅ real Cloudflare Quick Tunnel against server harness; 🟡 Android host not exercised |
+| HTTPS share link | verified `TunnelStatus.activeUrl`, `ShareLinks` | ✅ HTTPS health/Range/WS verified in harness; 🟡 app UI onboarding not |
 | Unique access tokens | 256-bit invite/session/host tokens, HMAC media token | ✅ security tests |
 | Versioned API | `/api/v1` + `/api` compatibility alias | ✅ server tests |
 | Documented WS protocol | `docs/WEBSOCKET_PROTOCOL.md` | ✅ docs added |
@@ -37,19 +37,20 @@ Legend:
 | GitHub Actions | `.github/workflows/ci.yml`, `release.yml` | ✅ CI and release runs passed on GitHub |
 | Release/R8 build | `:app:assembleRelease`, release workflow | ✅ builds unsigned APK in CI; ⛔ not signed or hardware-tested |
 
-## Automated verification performed locally
+## Automated verification performed locally and in CI
 
 Environment: Windows, JDK 17.0.20.1, Android SDK with platform 34, Node 26, Gradle 8.7.
 
 | Command | Result |
 | --- | --- |
 | `.\gradlew.bat :shared:test` | 38 tests passed |
-| `.\gradlew.bat :streaming:testDebugUnitTest` | 25 tests passed |
+| `.\gradlew.bat :streaming:testDebugUnitTest` | 26 tests passed in CI; local full-suite rerun OOM on the 8 GB host |
 | `.\gradlew.bat :app:compileDebugKotlin` | passed |
 | `.\gradlew.bat :app:assembleDebug` | `BUILD SUCCESSFUL`, 99 tasks |
 | `.\gradlew.bat :app:assembleRelease` | local run not verified: Gradle daemon OOM on the 8 GB host during R8 |
-| CI run `42569272812` | passed: web tests/build, 63 Android tests, debug APK artifact |
+| CI run `42577294247` | passed: web tests/build, 64 Android tests, debug APK artifact |
 | Release run `42569281967` | passed on `ubuntu-latest`: R8 release APK built |
+| Cloudflare Quick Tunnel | Windows `cloudflared` → Ktor harness: health 200, browser index 200, room metadata 200, join 200, Range `206` with `Content-Range: bytes 100-199/2097152`, WebSocket `JOIN_ACK` + `PLAY` state confirmed |
 | Downloaded release APK | 5,504,083 bytes, SHA-256 `B7F2660A0DFC05849F4E193671EAC111DD88611C2F7C025D90F23C57E1DF8E92`; unsigned; `assets/web/*` and `classes.dex` present |
 | APK asset inspection | `assets/web/index.html`, hashed JS/CSS, manifest, SW, icons present |
 | `npm run typecheck` | passed |
@@ -82,14 +83,23 @@ paths.
    compiles.
 4. **Missing browser client in the APK** was fixed by building `web/dist` before
    `assembleDebug` and verifying the APK zip entries.
+5. **HEAD `/video` returned two `Content-Length` headers** (`2097152` and `0`), so
+   Cloudflare's edge rejected the response with `502 Bad Gateway` even though Range GET
+   requests worked. The HEAD branch now responds with an `OutgoingContent.NoContent`
+   carrying the real media length, and regression tests assert exactly one
+   `Content-Length` for full and partial HEAD requests.
 
 ## Not verified (must be done before calling this production-ready)
 
 - Install and run on at least one physical Android device (ideally two) with a real
   video and a real SAF provider.
 - Exercise the full host → Android viewer and host → browser flows on a LAN.
-- Establish a real Cloudflare quick/named tunnel and verify `/api/v1/health`, the
+- Repeat the Cloudflare Quick Tunnel from a companion machine that reaches an **Android
+  host**, and verify the app's Settings → Tunnel onboarding plus `/api/v1/health`, the
   WebSocket upgrade and Range streaming through it.
+- Recheck HEAD `/video` through a live Cloudflare tunnel after the duplicate
+  `Content-Length` fix; unit regression tests pass, but the fixed binary has not been
+  retested through the edge.
 - Test screen-off/background playback on a real OEM build.
 - Test a Room v1 → v2 migration on a device with an existing database.
 - Test media permission revocation, port conflicts, Wi-Fi changes and network loss.
@@ -102,7 +112,10 @@ paths.
 
 1. Install the debug APK on hardware and complete the checklist in
    `docs/ANDROID_SETUP.md`.
-2. Run a real Cloudflare tunnel using `docs/CLOUDFLARE_SETUP.md`.
+2. Run `cloudflared tunnel --url http://<phone-LAN-IP>:8080` on a computer that can
+   reach the phone, then verify the app's Settings → Tunnel flow as described in
+   `docs/CLOUDFLARE_SETUP.md`. A Windows companion quick tunnel has already been
+   exercised against the server harness.
 3. Add instrumentation tests for SAF, Media3 and the foreground service.
 4. Add a browser E2E suite with a mock host or a real Android host.
 5. Configure release signing secrets and verify the signed, minified APK on hardware.
@@ -111,7 +124,9 @@ paths.
 ## Honest conclusion
 
 The core logic and network layer are exercised by automated tests. The debug APK, browser
-client, CI pipeline and minified release/R8 build all succeed on GitHub Actions. The
-release artifact is still unsigned, and physical-device and real-tunnel paths are not
-proven in this environment. Treat it as a working foundation that still needs hardware
-validation, not as a verified production deployment.
+client, CI pipeline and minified release/R8 build all succeed on GitHub Actions. A real
+Cloudflare Quick Tunnel was exercised end to end against the WatchWave Ktor server
+harness, including health, Range `206` and WebSocket playback sync. The release artifact
+is still unsigned, and the Android host, SAF, background playback and app tunnel
+onboarding paths are not proven on hardware. Treat it as a working foundation that still
+needs hardware validation, not as a verified production deployment.

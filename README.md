@@ -14,11 +14,12 @@ so a single HTTPS tunnel URL is enough to share a room.
 | Area | Status |
 | --- | --- |
 | `:shared` protocol, tokens, rooms, sync clock, drift controller | 38 tests passing |
-| `:streaming` REST, Range parsing, media auth, WebSocket integration | 25 tests passing |
+| `:streaming` REST, Range parsing, media auth, WebSocket integration | 26 tests passing |
 | Android debug APK builds with the real browser client bundled | `BUILD SUCCESSFUL` |
 | Browser client typecheck, unit/integration tests and production build | 49 tests passing, build succeeds |
 | Real HTTP Range and WebSocket behaviour | Exercised by Ktor integration tests |
-| GitHub Actions CI | Run `42569272812` passed: web tests/build, 63 Android tests and debug APK |
+| Cloudflare Quick Tunnel | Windows `cloudflared` → WatchWave server harness: health 200, browser 200, join 200, Range 206, WebSocket `PLAY` confirmed |
+| GitHub Actions CI | Run `42577294247` passed: web tests/build, 64 Android tests and debug APK |
 | Release/R8 build | Run `42569281967` passed on `ubuntu-latest`; unsigned APK produced with the browser client bundled |
 
 ## What is not yet verified
@@ -28,9 +29,10 @@ These are hard limitations of the development environment, not hidden successes:
 - The APK has **not** been run on a physical Android device or emulator. No device, AVD
   or system image was available. Install and host/viewer flows on real hardware still
   need a manual pass.
-- A real Cloudflare tunnel has **not** been established end to end. The tunnel code is
-  implemented and guards against unverified URLs, but it requires an Android-compatible
-  `cloudflared` binary or a companion process that you supply.
+- The Cloudflare Quick Tunnel path was verified from Windows against the real WatchWave
+  HTTP/WebSocket server harness, but **not** from an Android host. The app's on-device
+  tunnel onboarding and health polling still need a hardware pass. The tunnel still
+  requires an Android-compatible `cloudflared` binary or a companion machine.
 - The browser client has not been exercised against a running Android host in a real
   browser. Its protocol and state logic are covered by unit/integration tests.
 - Background playback and the Media3 foreground service have not been tested with the
@@ -175,7 +177,7 @@ npm test
 npm run build
 ```
 
-Expected counts at the time of writing: **63 Android tests** (38 shared + 25 streaming)
+Expected counts at the time of writing: **64 Android tests** (38 shared + 26 streaming)
 and **49 browser tests**. The CI workflow runs these on Ubuntu with JDK 17 and Node 20.
 
 ## Security summary

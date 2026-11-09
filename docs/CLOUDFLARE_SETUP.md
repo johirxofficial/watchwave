@@ -51,6 +51,43 @@ https://random-words-1234.trycloudflare.com
 Quick tunnel URLs are temporary and change every time `cloudflared` restarts. Use a
 named tunnel if you need a stable hostname.
 
+### Windows companion example (verified)
+
+Run this on the Windows PC. Replace `192.168.1.20` with the phone's actual LAN IP:
+
+```powershell
+$phone = "192.168.1.20"
+Invoke-RestMethod "http://${phone}:8080/api/v1/health"
+
+& "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --no-autoupdate `
+    --url "http://${phone}:8080"
+```
+
+Copy the `https://*.trycloudflare.com` URL that `cloudflared` prints and paste it into
+**Settings → Tunnel → Companion URL**.
+
+> **Do not use `http://localhost/` unless WatchWave is running on the same PC.** On a
+> normal setup the phone runs WatchWave and the PC only runs `cloudflared`, so
+> `localhost` points at whatever web server the PC has (for example XAMPP), not at the
+> phone. A health check that returns 404 usually means the tunnel reached the wrong
+> origin. Use the phone's LAN IP and port instead.
+
+The Windows quick-tunnel path was tested end to end against the WatchWave Ktor server
+harness (not an Android device):
+
+- `/api/v1/health` → `200` with the WatchWave marker
+- browser client index → `200`
+- room metadata and join → `200`
+- `Range: bytes=100-199` → `206` with
+  `Content-Range: bytes 100-199/2097152`
+- WebSocket `JOIN_ACK`, `STATE_UPDATE` and a host `PLAY` command → playback state
+  confirmed
+
+A HEAD `/video` request initially failed with a Cloudflare `502` because the server sent
+two `Content-Length` headers (`2097152` and `0`). The HEAD branch now emits a single
+`Content-Length`; full and partial HEAD regression tests pass. Recheck HEAD through the
+tunnel after deploying newer builds if your viewer or tooling relies on it.
+
 ### Step 3: configure the app
 
 1. Open **Settings → Tunnel**.
