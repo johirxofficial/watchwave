@@ -1,0 +1,116 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build release artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build browser client
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform and build tools
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x android/gradlew
+
+      - name: Assemble release APK
+        working-directory: android
+        env:
+          WATCHWAVE_BASE_DOMAIN: ${{ vars.WATCHWAVE_BASE_DOMAIN }}
+          WATCHWAVE_APPLICATION_ID: ${{ vars.WATCHWAVE_APPLICATION_ID }}
+        run: |
+          ./gradlew :app:assembleRelease \
+            -Pwatchwave.baseDomain="${WATCHWAVE_BASE_DOMAIN:-}" \
+            -Pwatchwave.applicationId="${WATCHWAVE_APPLICATION_ID:-com.watchwave.app}" \
+            --stacktrace \
+            --console=plain
+
+      - name: Sign APK when signing secrets are configured
+        env:
+          KEYSTORE_BASE64: ${{ secrets.WATCHWAVE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.WATCHWAVE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.WATCHWAVE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.WATCHWAVE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          unsigned="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          signed="android/app/build/outputs/apk/release/app-release-signed.apk"
+          if [ -n "${KEYSTORE_BASE64:-}" ]; then
+            echo "Signing with the configured release keystore."
+            echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/watchwave.jks"
+            apksigner="$ANDROID_HOME/build-tools/34.0.0/apksigner"
+            "$apksigner" sign \
+              --ks "$RUNNER_TEMP/watchwave.jks" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass "pass:$KEYSTORE_PASSWORD" \
+              --key-pass "pass:$KEY_PASSWORD" \
+              --out "$signed" \
+              "$unsigned"
+            "$apksigner" verify --print-certs "$signed"
+            echo "SIGNED_APK=$signed" >> "$GITHUB_ENV"
+          else
+            echo "No signing secrets configured; uploading the unsigned APK."
+            echo "SIGNED_APK=$unsigned" >> "$GITHUB_ENV"
+          fi
+
+      - name: Collect release artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p release-artifacts
+          cp "$SIGNED_APK" release-artifacts/watchwave.apk
+          mapping="android/app/build/outputs/mapping/release/mapping.txt"
+          if [ -f "$mapping" ]; then
+            cp "$mapping" release-artifacts/mapping.txt
+          fi
+          metadata="android/app/build/outputs/apk/release/output-metadata.json"
+          if [ -f "$metadata" ]; then
+            cp "$metadata" release-artifacts/output-metadata.json
+          fi
+          ls -lh release-artifacts
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: watchwave-release
+          path: release-artifacts
+          if-no-files-found: error
+          retention-days: 30

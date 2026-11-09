@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="watchwave_background">#070A10</color>
+    <color name="watchwave_surface">#10151F</color>
+    <color name="watchwave_accent">#22D3EE</color>
+</resources>

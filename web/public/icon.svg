@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="WatchWave">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d1424"/>
+      <stop offset="1" stop-color="#06070b"/>
+    </linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="172" fill="none" stroke="#22d3ee" stroke-opacity=".12" stroke-width="2"/>
+  <path d="M92 262c34-60 68-60 102 0s68 60 102 0 68-60 102 0" fill="none" stroke="url(#wave)" stroke-width="26" stroke-linecap="round"/>
+  <path d="M120 324c30-42 60-42 90 0s60 42 90 0 60-42 90 0" fill="none" stroke="#22d3ee" stroke-opacity=".45" stroke-width="14" stroke-linecap="round"/>
+  <path d="M212 178v156l124-78z" fill="#f8fbff"/>
+</svg>
