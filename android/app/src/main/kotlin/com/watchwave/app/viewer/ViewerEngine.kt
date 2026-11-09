@@ -17,12 +17,14 @@ import com.watchwave.data.settings.AppSettings
 import com.watchwave.shared.protocol.RoomSummaryDto
 import com.watchwave.shared.sync.DriftConfig
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class ViewerPhase { IDLE, JOINING, LIVE, LEAVING, FAILED }
 
@@ -204,7 +206,7 @@ class ViewerEngine(
         playbackSync = null
         client?.close()
         client = null
-        playback.stop()
+        withContext(Dispatchers.Main.immediate) { playback.stop() }
         runCatching { HostStreamingService.stop(context) }
         api?.close()
         api = null

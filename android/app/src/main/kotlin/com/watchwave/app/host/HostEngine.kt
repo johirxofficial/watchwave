@@ -44,6 +44,7 @@ import com.watchwave.tunnel.TunnelMode as ProviderTunnelMode
 import com.watchwave.tunnel.TunnelState
 import com.watchwave.tunnel.TunnelStatus
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +53,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.net.ServerSocket
 import java.util.concurrent.ConcurrentHashMap
 
@@ -546,7 +548,7 @@ class HostEngine(
         playbackSync = null
         client?.close()
         client = null
-        playback.stop()
+        withContext(Dispatchers.Main.immediate) { playback.stop() }
         runCatching { HostStreamingService.stop(context) }
         runCatching { tunnelManager.stop() }
         runCatching { server?.stop() }

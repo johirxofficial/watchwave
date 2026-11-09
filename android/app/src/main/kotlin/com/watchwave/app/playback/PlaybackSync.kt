@@ -10,6 +10,7 @@ import com.watchwave.shared.sync.DriftConfig
 import com.watchwave.shared.sync.DriftController
 import com.watchwave.shared.sync.expectedPositionMs
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,13 +47,16 @@ class PlaybackSync(
 
     init {
         playback.mediaTokenProvider = { client.mediaToken }
+        // ExoPlayer must only be touched on its application thread (the main thread).
+        // The shared app scope runs on Dispatchers.Default, so pin both coroutines to
+        // Main instead of relying on whichever thread happened to start the engine.
         jobs = listOf(
-            scope.launch {
+            scope.launch(Dispatchers.Main.immediate) {
                 client.playback.collect { authoritative ->
                     if (authoritative != null) applyAuthoritative(authoritative)
                 }
             },
-            scope.launch {
+            scope.launch(Dispatchers.Main.immediate) {
                 while (isActive) {
                     delay(TICK_MS)
                     tick()
