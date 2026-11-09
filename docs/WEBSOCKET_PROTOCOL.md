@@ -65,7 +65,8 @@ frame. Clients must tolerate missing fields and use `null`/`undefined` checks.
 | `clientTimestamp` | number | Client time when a command was created |
 | `expectedSequence` | number | Sequence the client believes is current |
 | `retryAfterMs` | number | Suggested retry delay |
-| `text` | string | Text for notices, errors and ping correlation |
+| `text` | string | Text for notices, errors, chat sends and ping correlation |
+| `chatMessages` | array | Chat messages (send, broadcast or history) |
 
 Participant objects:
 
@@ -102,17 +103,73 @@ Participant objects:
 | `SET_SPEED` | client → server | Set `playbackSpeed` |
 | `ENDED` | client → server | Mark playback ended |
 | `LEAVE` | client → server | Leave and close the socket cleanly |
+| `CHAT_SEND` | client → server | Send a chat message (`text`, 1–500 characters) |
+| `CHAT_MESSAGE` | server → client | One authoritative chat message broadcast to the room |
+| `CHAT_HISTORY` | server → client | Last up to 100 messages, sent after a successful join |
 | `JOIN` | reserved | Not accepted; identity comes from the URL token |
 
 `JOIN` exists for forward compatibility only. Sending it returns `INVALID_ACTION`.
+
+## Chat
+
+Chat uses the same authenticated room socket and is available to every participant, even
+when viewer playback controls are locked.
+
+Client send:
+
+```json
+{
+  "type": "CHAT_SEND",
+  "roomId": "k3f9xz2m7q1a",
+  "text": "That scene was wild",
+  "clientTimestamp": 1762684920000
+}
+```
+
+Server broadcast:
+
+```json
+{
+  "type": "CHAT_MESSAGE",
+  "roomId": "k3f9xz2m7q1a",
+  "serverTime": 1762684920123,
+  "chatMessages": [
+    {
+      "messageId": "8a2d0f3e-...",
+      "participantId": "p_xy12ab34cd56ef",
+      "displayName": "Rahim",
+      "text": "That scene was wild",
+      "sentAt": 1762684920123,
+      "isHost": false
+    }
+  ]
+}
+```
+
+Rules:
+
+- The server trims text, rejects empty messages with `CHAT_EMPTY`, and rejects text longer
+  than 500 characters with `CHAT_TOO_LONG`.
+- The server always overwrites `participantId`, `displayName`, `isHost`, `messageId` and
+  `sentAt` from the authenticated session and its own clock. Clients cannot spoof another
+  sender.
+- Each connection has a separate chat limiter of 10 messages per 10 seconds. Exceeding it
+  returns `RATE_LIMITED` with `retryAfterMs`.
+- History is in memory only, capped at the last 100 messages per room, and cleared when the
+  room closes or the host process stops. It is not persisted to disk.
+- On join the server sends `JOIN_ACK`, `STATE_UPDATE`, then `CHAT_HISTORY` if history exists,
+  then the participant broadcasts. Clients should clear local chat on a new handshake and
+  rebuild it from `CHAT_HISTORY` plus subsequent `CHAT_MESSAGE` frames.
+- A `CHAT_MESSAGE` frame contains one message in normal operation; clients must still
+  tolerate an array and de-duplicate by `messageId`.
 
 ## Connection lifecycle
 
 1. Client obtains a session token through `POST /join` or `POST /reconnect`.
 2. Client opens the WebSocket with `?token=<sessionToken>`.
 3. Server validates the token, registers the participant and marks it connected.
-4. Server sends `JOIN_ACK`, then `STATE_UPDATE`, then `PARTICIPANTS` and
-   `PARTICIPANT_JOINED` broadcasts.
+4. Server sends `JOIN_ACK`, then `STATE_UPDATE`, then `CHAT_HISTORY` when history exists,
+   then `PARTICIPANTS` and `PARTICIPANT_JOINED` broadcasts.
 5. Every 15 seconds the server sends `SYNC_PING`. Clients answer `SYNC_PONG`; the server
    accepts the pong silently. Clients may also send their own `SYNC_PING`, which the
    server answers with `SYNC_PONG` and the original `text` correlation value.

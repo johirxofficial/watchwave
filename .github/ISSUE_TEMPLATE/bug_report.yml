@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a reproducible problem with WatchWave
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping. Do not paste invite tokens, session tokens, public tunnel
+        hostnames, personal IP addresses, or unredacted screenshots.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: A clear, short description of the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Install the debug APK from run ...
+        2. Add a 15-second MP4 through the picker
+        3. Start a room with Instant public link
+        4. Join from Chrome and press play
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: WatchWave version / commit
+      placeholder: "e.g. 4a3af7b, CI run 42589858867, or debug APK date"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Host and viewer devices
+      placeholder: "e.g. Samsung SM-A217F, Android 12; Windows 11 Chrome 131"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Android host
+        - Android viewer
+        - Browser client
+        - Chat
+        - Tunnel / share link
+        - Playback sync
+        - Build / CI
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs (redacted)
+      description: Use `adb logcat` or the in-app diagnostics, and redact secrets.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I removed tokens, public URLs and personal data from this report.
+          required: true
+        - label: I searched existing issues for the same problem.
+          required: true

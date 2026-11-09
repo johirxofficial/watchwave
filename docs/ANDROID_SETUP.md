@@ -12,9 +12,9 @@ The project uses Gradle 8.7, AGP 8.6.1, Kotlin 2.0.20, Compose BOM 2024.09.00, K
 2.3.12, Media3 1.4.1 and Room 2.6.1. These versions are pinned in
 `android/gradle/libs.versions.toml`.
 
-> This environment had no connected device, AVD or system image, so the APK was compiled
-> and assembled but never installed or exercised on Android hardware. Treat device
-> behaviour as unverified until you complete the checklist below.
+> A real Samsung SM-A217F (Android 12, arm64-v8a) was used for the main hardware pass:
+> SAF import, host start, Range streaming, WebSocket controls and a live browser viewer
+> were verified. See `docs/IMPLEMENTATION_CHECKLIST.md` for exactly what remains.
 
 ## Environment
 
@@ -122,7 +122,7 @@ Open **Settings** in the app:
 | Listen port | 8080 | Scans up to 25 nearby ports if busy |
 | Max participants | 10 | Clamped to 2–50 |
 | Room lifetime | 360 min | Clamped to 5–1440 min |
-| Tunnel mode | None | Companion URL or cloudflared process |
+| Tunnel mode | Instant public | Bundled on-device Quick Tunnel; LAN, companion URL and custom cloudflared are fallbacks |
 | Drift thresholds | 300/1200/3000 ms | Tune if your network is slow |
 | Auto-reconnect | On | Reconnect the host/viewer WebSocket |
 
@@ -145,10 +145,13 @@ codes. Without it, use a full `http://` or `https://` invitation link.
    playback.
 3. Start hosting. The app starts the embedded server, the foreground service and the
    local sync client.
-4. Share the LAN link on the same Wi-Fi, or configure a tunnel for remote viewers.
+4. Share the verified **Instant public** HTTPS link for remote viewers, or the LAN link when
+   everyone is on the same Wi-Fi.
 5. On the host screen you can play/pause/seek/speed, lock viewer controls, disable joins,
    remove participants, rotate the invite and close the room.
-6. Diagnostics shows the server address, active connections, bytes sent and tunnel state.
+6. Use the **Room chat** panel to talk with everyone. Viewers can chat even when playback
+   controls are locked; the server owns sender names and timestamps.
+7. Diagnostics shows the server address, active connections, bytes sent and tunnel state.
 
 The host must stay in the foreground service; force-stopping the app ends the room and
 invalidates every link.

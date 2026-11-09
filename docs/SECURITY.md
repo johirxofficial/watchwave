@@ -63,6 +63,11 @@ All tokens are URL-safe base64 so they survive query strings and deep links.
 - Rotating the invite invalidates old share links immediately. Existing sessions remain
   valid until they leave, are removed, or the room closes.
 - Closing a room marks every participant disconnected and broadcasts `ROOM_CLOSED`.
+- Chat is available to every authenticated participant, including viewers whose playback
+  controls are locked. The server overwrites sender id, display name, host flag, message id
+  and timestamp from the session and its own clock, so a client cannot spoof another user.
+- Chat is limited to 500 characters and 10 messages per 10 seconds per connection. History
+  is capped at 100 messages per room and is never persisted.
 
 ## Transport
 
@@ -171,6 +176,12 @@ If you add logging, do not log `Authorization`, `X-WatchWave-Host-Token`,
 - The tunnel provider is trusted to terminate TLS and forward traffic.
 - Do not expose the embedded server directly to the public internet without a TLS
   reverse proxy/tunnel; use the LAN or an HTTPS tunnel.
+- The bundled cloudflared binary and Mozilla CA bundle are third-party artifacts. Their
+  exact versions and SHA-256 checksums are recorded in
+  `docs/THIRD_PARTY_NOTICES.md`. Verify them when updating, and only execute the bundled
+  binary from the app's read-only native-library directory.
+- Quick Tunnels are best-effort and public to anyone with the full room link while the room
+  is active. Do not treat the random hostname as an access control.
 
 ## Reporting a vulnerability
 

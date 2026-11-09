@@ -60,8 +60,9 @@ sources). It never touches Android storage directly.
 - `TunnelManager` — owns the active provider and exposes one status stream.
 - `CompanionUrlProvider` — uses an externally run `cloudflared`/reverse proxy and
   verifies its HTTPS URL.
-- `CloudflaredProcessProvider` — starts an Android-compatible `cloudflared` binary,
-  parses its public URL and verifies it.
+- `CloudflaredProcessProvider` — starts a cloudflared binary, parses its public URL and
+  verifies it. Used for both the bundled arm64 Quick Tunnel and an advanced custom binary;
+  the bundled path supplies `SSL_CERT_FILE` and a writable `HOME`/`TMPDIR`.
 - `HttpReachabilityVerifier` — requires the WatchWave health marker before a URL is
   exposed to the UI or share sheet.
 
@@ -79,8 +80,10 @@ sources). It never touches Android storage directly.
   tunnel, local client, playback bridge and history.
 - `ViewerEngine` — one viewer session at a time: invite parsing, room preview, join/
   reconnect, media token, WebSocket client and playback bridge.
-- `RoomClient` — Ktor HTTP/WebSocket client shared by host and viewer.
+- `RoomClient` — Ktor HTTP/WebSocket client shared by host and viewer; owns the chat
+  `StateFlow` and `sendChat()`.
 - `PlaybackSync` — connects the local Media3 player to the authoritative state.
+- `ChatPanel` — shared Compose room-chat UI for host and viewer screens.
 - `PlaybackController` — app-scoped ExoPlayer wrapper.
 - `HostStreamingService` — Media3 `MediaSessionService` plus a foreground notification.
 - `SecureStore` — Android Keystore AES-GCM encryption for connector credentials.
@@ -178,20 +181,42 @@ The browser client is a Vite + React 18 + TypeScript application:
   display name and volume only.
 - `services/sync-client.ts` — WebSocket reconnect/backoff, heartbeat, command ids,
   expected sequences and fatal-close handling.
-- `hooks/useWatchParty.ts` — join, reconnect, token refresh, notices and commands.
+- `hooks/useWatchParty.ts` — join, reconnect, token refresh, notices, commands and chat.
+- `components/ChatPanel.tsx` — room chat with server-echoed messages, quick reactions and
+  connection state.
 - `player/WatchPlayer.tsx` — HTML5 video, token rotation, drift loop, autoplay overlay,
   fullscreen, PiP, volume, speed and keyboard shortcuts.
-- `room/state.ts` — pure reducer for sync frames, covered by Vitest.
+- `room/state.ts` — pure reducer for sync and chat frames, covered by Vitest.
 
 The browser stores session credentials only in that room's `sessionStorage`. Media
 tokens live for one hour; the client refreshes them every 45 minutes and swaps the
 video source while preserving position and playback state.
+
+## Chat path
+
+1. A client sends `CHAT_SEND` with only text (plus an optional client timestamp) over its
+   authenticated room WebSocket.
+2. `WebSocketHub` applies a per-connection 10-message/10-second limiter, trims the text,
+   checks the 500-character limit and resolves the participant from the session token.
+3. The server creates a `ChatMessageDto` with its own message id, participant id, display
+   name, host flag and wall-clock timestamp.
+4. The message is appended to a per-room in-memory deque capped at 100 entries.
+5. `CHAT_MESSAGE` is broadcast to every connection in the room.
+6. A newly joined client receives `JOIN_ACK`, `STATE_UPDATE`, then `CHAT_HISTORY` when
+   history exists.
+7. Both clients de-duplicate by `messageId` and keep the last 100 entries.
+
+Chat history is intentionally ephemeral: it is not written to Room or any file and is
+cleared when the room closes or the host process stops.
 
 ## Tunnel lifecycle
 
 The tunnel is an optimisation for remote viewers, not a prerequisite for LAN viewing.
 
 - `NONE` — LAN only.
+- `ON_DEVICE` — the default. The app runs the bundled arm64 `cloudflared` from its
+  executable `nativeLibraryDir` as a free Quick Tunnel, with the Mozilla CA bundle supplied
+  through `SSL_CERT_FILE`. No account or companion device is required.
 - `COMPANION_URL` — the host supplies an HTTPS URL that forwards to its listen port.
   The app polls `/api/v1/health` and only publishes the link after the WatchWave marker
   is returned.

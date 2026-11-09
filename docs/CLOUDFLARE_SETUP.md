@@ -1,21 +1,68 @@
 # Cloudflare tunnel setup
 
-WatchWave can expose the phone's embedded server through Cloudflare Tunnel. Two modes
-are supported. The companion mode is recommended because Cloudflare's stock Linux
-`cloudflared` binary will not run on Android's Bionic libc.
-
-A public URL is **never** shown as shareable until the app verifies:
+WatchWave can expose the phone's embedded server through Cloudflare Tunnel. A public URL is
+**never** shown as shareable until the app verifies:
 
 ```text
 GET https://<public-url>/api/v1/health  ->  body contains "WatchWave"
 ```
 
-An unverified URL stays out of the share sheet, even if the process reports it.
+An unverified URL stays out of the share sheet, even if the process prints one.
 
-## Mode 1: companion URL (recommended)
+## Mode 1: Instant public (default, no setup)
 
-Run `cloudflared` on a computer, router, NAS or Termux session that can reach the phone
-over the LAN. The tunnel forwards to the phone's LAN address and port.
+The APK bundles Cloudflare's official `cloudflared-linux-arm64` binary and the Mozilla CA
+bundle. On arm64 phones the app:
+
+1. Extracts the binary into Android's executable `nativeLibraryDir` at install time.
+2. Extracts `assets/tunnel/cacert.pem` into app storage.
+3. Runs:
+   ```text
+   cloudflared tunnel --no-autoupdate --url http://127.0.0.1:<port>
+   ```
+   with `SSL_CERT_FILE` pointing at the CA bundle, plus a writable `HOME`/`TMPDIR`.
+4. Parses the `https://*.trycloudflare.com` URL from the output.
+5. Verifies the health marker through the public HTTPS edge.
+6. Shows **PUBLIC LINK · TUNNEL VERIFIED** only after step 5 succeeds.
+
+You do not need a PC, Termux, cloudflared install, Cloudflare account or port forwarding.
+The tunnel starts when the party starts and stops when the room ends.
+
+Quick Tunnels are free and best-effort:
+
+- No uptime guarantee.
+- Usually a new random hostname on each start.
+- Subject to Cloudflare's terms and rate limits.
+- Do not use them for sensitive or long-lived rooms without a named tunnel.
+
+**Requirements:** `arm64-v8a` (most modern phones). Other ABIs fall back to LAN, companion
+URL or a custom executable. The phone must stay alive; the foreground media service keeps
+the host process running.
+
+### Verified on-device result
+
+On a Samsung SM-A217F (Android 12, arm64-v8a), the same binary with the same CA bundle ran
+from `/data/local/tmp` and produced a temporary URL like:
+
+```text
+https://<random-words>.trycloudflare.com
+```
+
+Through that tunnel:
+
+- `/api/v1/health` → `200`
+- browser index → `200`
+- room metadata → `200`
+
+The hostname was temporary and is not a permanent service. The packaged APK stores the
+binary at `lib/arm64-v8a/libcloudflared.so`; executing it from the app's native-library
+directory under the app UID was also verified. The final tap-to-start live-room pass is
+tracked in `docs/IMPLEMENTATION_CHECKLIST.md`.
+
+## Mode 2: Companion URL (fallback / stable hostname)
+
+Use this when the host phone is not arm64, or when you already run a tunnel on a computer,
+router, NAS or Termux session that can reach the phone over the LAN.
 
 ### Step 1: start the host
 
@@ -31,8 +78,8 @@ Verify the phone is reachable from the companion machine:
 curl http://192.168.1.20:8080/api/v1/health
 ```
 
-You must see the WatchWave health JSON. If this fails, fix the LAN/firewall first; a
-tunnel cannot fix an unreachable origin.
+You must see the WatchWave health JSON. If this fails, fix the LAN/firewall first; a tunnel
+cannot fix an unreachable origin.
 
 ### Step 2: start a quick tunnel
 
@@ -48,106 +95,36 @@ cloudflared tunnel --url http://192.168.1.20:8080
 https://random-words-1234.trycloudflare.com
 ```
 
-Quick tunnel URLs are temporary and change every time `cloudflared` restarts. Use a
-named tunnel if you need a stable hostname.
+Quick tunnel URLs are temporary and change every time `cloudflared` restarts. Use a named
+tunnel if you need a stable hostname.
 
-### Windows companion example (verified)
-
-Run this on the Windows PC. Replace `192.168.1.20` with the phone's actual LAN IP:
-
-```powershell
-$phone = "192.168.1.20"
-Invoke-RestMethod "http://${phone}:8080/api/v1/health"
-
-& "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --no-autoupdate `
-    --url "http://${phone}:8080"
-```
-
-Copy the `https://*.trycloudflare.com` URL that `cloudflared` prints and paste it into
-**Settings → Tunnel → Companion URL**.
-
-> **Do not use `http://localhost/` unless WatchWave is running on the same PC.** On a
-> normal setup the phone runs WatchWave and the PC only runs `cloudflared`, so
-> `localhost` points at whatever web server the PC has (for example XAMPP), not at the
-> phone. A health check that returns 404 usually means the tunnel reached the wrong
-> origin. Use the phone's LAN IP and port instead.
-
-The Windows quick-tunnel path was tested end to end against the WatchWave Ktor server
-harness (not an Android device):
-
-- `/api/v1/health` → `200` with the WatchWave marker
-- browser client index → `200`
-- room metadata and join → `200`
-- `Range: bytes=100-199` → `206` with
-  `Content-Range: bytes 100-199/2097152`
-- WebSocket `JOIN_ACK`, `STATE_UPDATE` and a host `PLAY` command → playback state
-  confirmed
-
-A HEAD `/video` request initially failed with a Cloudflare `502` because the server sent
-two `Content-Length` headers (`2097152` and `0`). The HEAD branch now emits a single
-`Content-Length`; full and partial HEAD regression tests pass. Recheck HEAD through the
-tunnel after deploying newer builds if your viewer or tooling relies on it.
+> **Do not use `http://localhost/` unless WatchWave is running on the same PC.** On a normal
+> setup the phone runs WatchWave and the PC only runs `cloudflared`, so `localhost` points
+> at whatever web server the PC has (for example XAMPP), not at the phone. A 404 from the
+> health check usually means the tunnel reached the wrong origin.
 
 ### Step 3: configure the app
 
 1. Open **Settings → Tunnel**.
-2. Select **Companion URL**.
+2. Select **Companion**.
 3. Paste the full `https://...` URL (no path).
-4. Save and open **Tunnel status**.
-5. Wait for state **CONNECTED**, verified = true.
+4. Open **Tunnel status** and wait for **CONNECTED**, verified = true.
 
 The app polls the health endpoint every 15 seconds. After five consecutive failures it
 reports `FAILED` and stops advertising the URL.
 
-### Step 4: share
+### Verified companion result
 
-Return to the host screen. The tunnel link replaces the LAN link when it is verified.
-Viewers on cellular data can now open it. The browser client is served by the phone, so
-there is nothing to deploy separately.
+A Windows `cloudflared` quick tunnel was run against the **real Android host** over
+`adb forward`. Through HTTPS/WSS the browser viewer joined, HTML5 video reached
+`readyState=4`, an actual frame rendered, play/pause worked, and the UI showed
+**WSS · host relay** and **IN SYNC**. Health, index and room metadata all returned `200`.
+Range streaming also returned `206`.
 
-### Named tunnel with a stable hostname
+## Mode 3: custom cloudflared binary (advanced)
 
-```bash
-cloudflared tunnel login
-cloudflared tunnel create watchwave
-cloudflared tunnel route dns watchwave wave.example.com
-```
-
-Create `config.yml` on the companion machine:
-
-```yaml
-tunnel: <TUNNEL-UUID>
-credentials-file: /home/you/.cloudflared/<TUNNEL-UUID>.json
-ingress:
-  - hostname: wave.example.com
-    service: http://192.168.1.20:8080
-  - service: http_status:404
-```
-
-Run:
-
-```bash
-cloudflared tunnel run watchwave
-```
-
-Then enter `https://wave.example.com` as the companion URL in WatchWave.
-
-The service address must be reachable **from the machine running cloudflared**. If
-cloudflared runs on the phone, the service belongs to the phone and should be
-`http://127.0.0.1:8080`.
-
-## Mode 2: on-device cloudflared process
-
-WatchWave can launch a cloudflared binary directly. It does **not** bundle or download
-one, because a normal Linux glibc build will not execute on Android.
-
-Requirements:
-
-- An Android/Bionic-compatible `cloudflared` build that you trust.
-- The binary placed in app-writable storage and marked executable.
-- A quick tunnel (no token) or a named tunnel token from Cloudflare.
-
-### Push the binary
+The app also accepts a user-supplied Android-compatible executable. This is useful for a
+different ABI or a custom build you trust.
 
 ```bash
 adb push cloudflared-android /sdcard/Download/
@@ -158,28 +135,25 @@ adb shell run-as com.watchwave.app chmod 700 files/cloudflared
 The path depends on your application id. If you built with
 `-Pwatchwave.applicationId=com.example.watchwave`, use that package name.
 
-In **Settings → Tunnel → On-device cloudflared**, set:
+In **Settings → Tunnel → Custom cloudflared**, set:
 
 ```text
 Executable path: /data/data/<your.application.id>/files/cloudflared
 ```
 
-### Quick tunnel
-
-Leave the token empty and save. The app runs approximately:
+Leave the token empty for a quick tunnel. The app runs approximately:
 
 ```text
 cloudflared tunnel --no-autoupdate --url http://127.0.0.1:<port>
 ```
 
-It parses the `https://*.trycloudflare.com` URL from stdout/stderr, then verifies the
-health endpoint. The URL changes on every restart.
+and verifies the public health endpoint before showing the link.
 
-### Named tunnel
+### Named tunnel with a stable hostname
 
 1. In the Cloudflare dashboard, create a tunnel and copy its token.
 2. Configure the tunnel's public hostname to point at `http://127.0.0.1:<port>` because
-   cloudflared runs on the phone itself.
+   cloudflared runs on the phone.
 3. Paste the token into WatchWave. It is encrypted with an AES-GCM key in the Android
    Keystore and passed to the child process through the `TUNNEL_TOKEN` environment
    variable, not the command line.
@@ -188,6 +162,19 @@ health endpoint. The URL changes on every restart.
 
 If the named hostname is omitted, the app waits for cloudflared to print a URL. A named
 tunnel normally does not print a quick-tunnel URL, so configure the hostname explicitly.
+
+For a companion named tunnel, create `config.yml` on the companion machine:
+
+```yaml
+tunnel: <TUNNEL-UUID>
+credentials-file: /home/you/.cloudflared/<TUNNEL-UUID>.json
+ingress:
+  - hostname: wave.example.com
+    service: http://192.168.1.20:8080
+  - service: http_status:404
+```
+
+Then enter `https://wave.example.com` as the companion URL.
 
 ## Verification and failure states
 
@@ -206,40 +193,23 @@ Only `CONNECTED` + `verified` produces a share link.
 Common causes of an unverified URL:
 
 - The URL points to the wrong port or to a machine that cannot reach the phone.
-- The phone's LAN IP changed after the tunnel was configured.
+- The phone's LAN IP changed after the companion tunnel was configured.
 - The phone is asleep, the host was force-stopped, or the room was closed.
 - Cloudflare DNS/edge is still propagating.
 - A firewall blocks the phone's port from the companion machine.
-- The URL is HTTP; remote sharing expects HTTPS. The verifier accepts `http://` only for
-  local testing; use HTTPS for anything beyond a trusted LAN.
 - Quick tunnel rate limits or an expired temporary URL.
+- The bundled tunnel was used on a non-arm64 device (fall back to LAN/companion/custom).
 
 Check locally first:
 
 ```bash
 curl -i http://<phone-ip>:<port>/api/v1/health
+```
+
+Then check the public URL:
+
+```bash
 curl -i https://<public-url>/api/v1/health
 ```
 
-Both must return the WatchWave JSON. The second request is exactly what the app checks.
-
-## Security notes
-
-- Use HTTPS for remote viewers. The session, media and invite tokens travel in URLs and
-  headers over the tunnel.
-- Do not expose the embedded server directly on the public internet. Cloudflare Tunnel
-  terminates TLS and gives you a controlled ingress.
-- Quick tunnels are public URLs. Anyone who obtains the share link can attempt to join;
-  the 256-bit invite token is still required, and you can rotate it.
-- Treat the cloudflared token like a password. WatchWave encrypts it at rest and redacts
-  it from process errors, but a compromised phone can still read it while the app runs.
-- The app never returns the token, executable path or arbitrary logs through the API.
-- Rotate the invite from the host screen if a link leaks; old links stop working
-  immediately.
-
-## Optional: Cloudflare Access
-
-Cloudflare Access can put an identity-aware proxy in front of the hostname. It is not
-configured by WatchWave and may interfere with browser API/WebSocket requests unless
-your Access policy allows them. If you use it, test `/api/v1/health`, the WebSocket
-upgrade and the video Range requests through the same session.
+The app never uses a tunnel URL until that second check contains the WatchWave marker.

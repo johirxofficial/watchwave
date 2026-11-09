@@ -1,0 +1,50 @@
+name: Feature request
+description: Suggest a focused improvement for WatchWave
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep the product promise in mind: self-hosted, original quality, no fake links,
+        and no media upload.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the user need, not only the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Player UX
+        - Chat
+        - Onboarding / sharing
+        - Tunnel / reachability
+        - Sync / playback
+        - Security / privacy
+        - Build / CI / docs
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: This request keeps media on the host device and does not require a paid service.
+          required: true
+        - label: I searched existing issues for a similar request.
+          required: true

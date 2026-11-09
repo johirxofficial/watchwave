@@ -209,6 +209,23 @@ are ignored by design; retrying with the same id is safe.
 Browsers require a user gesture before unmuted playback. Click the tap-to-join overlay.
 This is expected browser policy, not a WatchWave failure.
 
+## Chat
+
+### Chat panel says `Reconnecting`
+
+Chat uses the same room WebSocket as playback. If the connection badge is also offline,
+fix the tunnel/network first. The client reconnects automatically with the saved session
+token and reloads the last 100 messages from `CHAT_HISTORY`.
+
+### A message disappears or is rejected
+
+- Empty messages are rejected with `CHAT_EMPTY`.
+- Messages over 500 characters are rejected with `CHAT_TOO_LONG`.
+- More than 10 messages in 10 seconds returns `RATE_LIMITED`; wait for `retryAfterMs`.
+- History is in memory only. Closing the room or restarting the host clears it.
+- Names and timestamps come from the server. A client cannot rename or spoof another
+  participant.
+
 ## Tunnel
 
 ### URL stays `STARTING` or `RECONNECTING`
@@ -219,14 +236,38 @@ This is expected browser policy, not a WatchWave failure.
 - Quick tunnel URLs expire; restart cloudflared and paste the new URL.
 - Named tunnel: check DNS, the tunnel UUID, credentials file and ingress service.
 
-### `NOT_INSTALLED` for on-device cloudflared
+### Instant public stays `NOT_INSTALLED`
 
-The configured path is not a file or is not executable. A stock Linux binary will not
-run on Android; use an Android/Bionic-compatible build or the companion mode. Check:
+Instant public only works on `arm64-v8a` devices with the bundled binary. Check the APK
+and the extracted native library:
+
+```bash
+adb shell pm path <application-id>
+adb shell run-as <application-id> ls -l /data/app/*/<application-id>-*/lib/arm64/libcloudflared.so
+```
+
+If the file exists, execute it under the app UID:
+
+```bash
+adb shell run-as <application-id> /data/app/*/<application-id>-*/lib/arm64/libcloudflared.so --version
+```
+
+If that fails, the device is not arm64 or the install did not extract native libs. Use
+**LAN only**, **Companion**, or a **Custom cloudflared** binary. If you use a custom path,
+check it directly:
 
 ```bash
 adb shell run-as <application-id> ls -l files/cloudflared
 ```
+
+### Instant public is `RECONNECTING` / verification fails
+
+- Confirm the phone has working internet and can reach `api.trycloudflare.com` on 443.
+- Confirm the CA bundle was extracted: look for `files/tunnel/cacert.pem` in the app data.
+- Quick Tunnels are rate-limited and best-effort; retry, or use a named tunnel.
+- The app kills and restarts cloudflared after a failed verification, so the hostname can
+  change. Wait for **PUBLIC LINK · TUNNEL VERIFIED**, not just a printed URL.
+- If the phone is on a restrictive network/VPN, try another network.
 
 ### URL is verified but viewers cannot load the browser client
 
