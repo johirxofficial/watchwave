@@ -18,6 +18,8 @@ so a single HTTPS tunnel URL is enough to share a room.
 | Android debug APK builds with the real browser client bundled | `BUILD SUCCESSFUL` |
 | Browser client typecheck, unit/integration tests and production build | 49 tests passing, build succeeds |
 | Real HTTP Range and WebSocket behaviour | Exercised by Ktor integration tests |
+| GitHub Actions CI | Run `42569272812` passed: web tests/build, 63 Android tests and debug APK |
+| Release/R8 build | Run `42569281967` passed on `ubuntu-latest`; unsigned APK produced with the browser client bundled |
 
 ## What is not yet verified
 
@@ -33,10 +35,10 @@ These are hard limitations of the development environment, not hidden successes:
   browser. Its protocol and state logic are covered by unit/integration tests.
 - Background playback and the Media3 foreground service have not been tested with the
   screen off on hardware.
-- The minified release/R8 build is not verified locally. The 8 GB Windows development
-  host ran out of memory while R8 was running and the Gradle daemon crashed. The debug
-  APK builds successfully and the CI workflow is configured to build the release on a
-  runner with more memory.
+- The release/R8 build succeeds in CI, but the artifact is **unsigned** until signing
+  secrets are configured. It has not been installed or exercised on hardware. Local R8
+  builds still fail on the 8 GB Windows host, so use the GitHub runner or a machine with
+  more memory.
 
 Do not treat the "not yet verified" rows as working until you reproduce them on your own
 device and network.

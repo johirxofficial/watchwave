@@ -34,7 +34,8 @@ Legend:
 | Tokens/credentials never exposed | memory-only room tokens, hashed sessions, redacted tunnel errors | ✅ design + tests for tokens; 🟡 no device log audit |
 | Configurable app id/base domain | `watchwave.applicationId`, `watchwave.baseDomain` | ✅ Gradle config; 🟡 not tested in a device build |
 | Docs | `README.md` + `docs/*` | ✅ written |
-| GitHub Actions | `.github/workflows/ci.yml`, `release.yml` | 🟡 added; ⛔ not run on GitHub yet |
+| GitHub Actions | `.github/workflows/ci.yml`, `release.yml` | ✅ CI and release runs passed on GitHub |
+| Release/R8 build | `:app:assembleRelease`, release workflow | ✅ builds unsigned APK in CI; ⛔ not signed or hardware-tested |
 
 ## Automated verification performed locally
 
@@ -46,7 +47,10 @@ Environment: Windows, JDK 17.0.20.1, Android SDK with platform 34, Node 26, Grad
 | `.\gradlew.bat :streaming:testDebugUnitTest` | 25 tests passed |
 | `.\gradlew.bat :app:compileDebugKotlin` | passed |
 | `.\gradlew.bat :app:assembleDebug` | `BUILD SUCCESSFUL`, 99 tasks |
-| `.\gradlew.bat :app:assembleRelease` | not verified: Gradle daemon OOM on the 8 GB local host during R8; CI is configured for release |
+| `.\gradlew.bat :app:assembleRelease` | local run not verified: Gradle daemon OOM on the 8 GB host during R8 |
+| CI run `42569272812` | passed: web tests/build, 63 Android tests, debug APK artifact |
+| Release run `42569281967` | passed on `ubuntu-latest`: R8 release APK built |
+| Downloaded release APK | 5,504,083 bytes, SHA-256 `B7F2660A0DFC05849F4E193671EAC111DD88611C2F7C025D90F23C57E1DF8E92`; unsigned; `assets/web/*` and `classes.dex` present |
 | APK asset inspection | `assets/web/index.html`, hashed JS/CSS, manifest, SW, icons present |
 | `npm run typecheck` | passed |
 | `npm test` | 49 tests across 7 files passed, exit 0 |
@@ -91,23 +95,23 @@ paths.
 - Test media permission revocation, port conflicts, Wi-Fi changes and network loss.
 - Run a browser E2E against a live host (Playwright/Cypress or manual).
 - Load/soak test concurrent streams, long sessions and reconnects.
-- Review the release build with R8 and a signed, installable APK.
+- Sign the release APK (CI secrets or a local keystore) and install it on hardware.
 - Add a license if the project will be distributed publicly.
 
 ## Next steps
 
-1. Run the CI workflow on GitHub and fix any environment-specific issues.
-2. Install the debug APK on hardware and complete the checklist in
+1. Install the debug APK on hardware and complete the checklist in
    `docs/ANDROID_SETUP.md`.
-3. Run a real Cloudflare tunnel using `docs/CLOUDFLARE_SETUP.md`.
-4. Add instrumentation tests for SAF, Media3 and the foreground service.
-5. Add a browser E2E suite with a mock host or a real Android host.
-6. Add release signing (CI secrets + Gradle signing config) and verify the minified APK.
-7. Add a LICENSE and a security review pass before public distribution.
+2. Run a real Cloudflare tunnel using `docs/CLOUDFLARE_SETUP.md`.
+3. Add instrumentation tests for SAF, Media3 and the foreground service.
+4. Add a browser E2E suite with a mock host or a real Android host.
+5. Configure release signing secrets and verify the signed, minified APK on hardware.
+6. Add a LICENSE and a security review pass before public distribution.
 
 ## Honest conclusion
 
-The core logic and network layer are exercised by automated tests, and the debug
-Android and web builds succeed. The release/R8 build, physical-device and real-tunnel
-paths are not proven in this environment. Treat it as a working foundation
-that still needs hardware validation, not as a verified production deployment.
+The core logic and network layer are exercised by automated tests. The debug APK, browser
+client, CI pipeline and minified release/R8 build all succeed on GitHub Actions. The
+release artifact is still unsigned, and physical-device and real-tunnel paths are not
+proven in this environment. Treat it as a working foundation that still needs hardware
+validation, not as a verified production deployment.
