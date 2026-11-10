@@ -273,6 +273,16 @@ fun HostScreen(
                             Spacer(Modifier.width(6.dp))
                             Text("Tunnel")
                         }
+                        if (
+                            state.tunnel.state == TunnelState.FAILED ||
+                            state.tunnel.state == TunnelState.RECONNECTING
+                        ) {
+                            OutlinedButton(onClick = { container.hostEngine.restartTunnel() }) {
+                                Icon(Icons.Filled.Sync, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Retry")
+                            }
+                        }
                     }
 
                     SectionLabel("Room controls")

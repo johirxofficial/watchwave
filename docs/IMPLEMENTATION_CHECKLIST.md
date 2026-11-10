@@ -51,7 +51,8 @@ Environment: GitHub Actions Ubuntu, JDK 17, Node 20, Android platform 34.
 | --- | --- |
 | `:shared:test` | 38 tests passed |
 | `:streaming:testDebugUnitTest` | 30 tests passed (including chat, viewer-command and state-request integration tests) |
-| `:app:compileDebugKotlin` | `BUILD SUCCESSFUL` after the 1.1.1 sync and UI fixes |
+| `:tunnel:testDebugUnitTest` | 3 tests passed (quick/named cloudflared command and transport flags) |
+| `:app:compileDebugKotlin` | `BUILD SUCCESSFUL` after the 1.1.2 tunnel reliability changes |
 | `:app:assembleDebug` | `BUILD SUCCESSFUL` in CI; APK includes `lib/arm64-v8a/libcloudflared.so` and `assets/tunnel/cacert.pem` |
 | Web `npm run typecheck` | passed |
 | Web `npm test` | 61 tests across 8 files passed |
@@ -59,6 +60,7 @@ Environment: GitHub Actions Ubuntu, JDK 17, Node 20, Android platform 34.
 | CI run `42589858867` | prior web + Android jobs passed; debug APK artifact uploaded |
 | CI run for 1.1.1 | ✅ run `42760442433` passed: browser typecheck/tests/build, 68 Android tests, debug APK artifact |
 | GitHub release `v1.1.1` | ✅ published with the CI debug APK (`45,186,733` bytes; SHA-256 `5304EDE464FDDDC89C45A23B447E121FCE62494CFD2BC47630E4C1B11D94CDE7`) |
+| Local `v1.1.2` debug APK | ✅ built locally (`45,228,094` bytes; SHA-256 `C9F96765E3061C978A8E8DF9ACC42D22CFD6FB2C17C9101D6E5AF791F5C075A3`); CI artifact hash will differ |
 | Debug APK (v0.1.0) | 45,140,165 bytes; SHA-256 `2B9012BB329F14474F2549DE6A1409EED3E8A39B9A652B63F85292C5C3222AEC`; installed on the SM-A217F |
 | Bundled cloudflared | version `2026.10.7`; SHA-256 `3DF43AEDC9FF291D1735B5CB576CB97E0B157488796DB2E32B28AECABB445775`; `run-as com.watchwave.app .../lib/arm64/libcloudflared.so --version` succeeds |
 | Bundled CA bundle | Mozilla `cacert.pem`, 200,116 bytes; SHA-256 `427C064216761A1E72A8B30F0D954D08CB6E4435A82091FB865AFD20C8497285` |

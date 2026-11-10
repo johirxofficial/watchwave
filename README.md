@@ -15,8 +15,16 @@ one HTTPS link is enough. **Instant public** mode starts a free Cloudflare Quick
 the phone itself; you do not need a PC, Termux, account or port forwarding in the normal
 flow.
 
-## What's new in 1.1.1
+## What's new in 1.1.2
 
+- **More reliable Instant public tunnels.** The bundled cloudflared now uses HTTP/2 over
+  TCP and IPv4 edge addresses instead of the default QUIC/UDP path, which many mobile
+  networks and captive portals block. Startup failure is detected immediately instead of
+  waiting for a generic timeout.
+- **Real tunnel diagnostics.** Redacted cloudflared output is written to the runtime log,
+  the last error line appears in the tunnel status, and **Copy report** now includes the
+  tunnel message and recent log tail. **Restart tunnel** is available in Diagnostics and
+  as a **Retry** action on the host screen.
 - **Resync that recovers, not guesses.** Viewers proactively request a fresh
   authoritative snapshot on connect and every 8 seconds, verify that commands were
   accepted, and pause local playback if the authoritative clock goes stale for 12
@@ -61,6 +69,11 @@ and keeps the screen on during playback.
 > **Tunnel note:** Instant public uses Cloudflare Quick Tunnels. They are free and require no
 > account, but they are best-effort, have no uptime guarantee, and usually get a new hostname
 > each time. Use a named tunnel or companion URL when you need a permanent address.
+>
+> Cloudflare Tunnel needs outbound TCP/UDP port 7844 to reach the Cloudflare edge. Some
+> restrictive networks block that port entirely; in that case the LAN link, a companion URL
+> or a custom tunnel is the only option. WatchWave now logs the exact cloudflared failure so
+> you can tell the difference.
 
 ## What works today
 
@@ -73,7 +86,7 @@ and keeps the screen on during playback.
 | Cloudflare Quick Tunnel | On-device bundled arm64 binary reached **PUBLIC LINK · TUNNEL VERIFIED**; public `/api/v1/health` returned `200` |
 | Room chat | Server-authoritative identity/timestamps, 500-char limit, 10/10 s rate limit, 100-message in-memory history; Android + browser UI; protocol integration tests |
 | One-tap in-app public link | Verified live on the test phone: start room, public health check, browser join, stream and chat history |
-| Automated tests | **68 Android tests** (38 shared + 30 streaming) and **61 browser tests**; CI runs both suites |
+| Automated tests | **71 Android tests** (38 shared + 30 streaming + 3 tunnel) and **61 browser tests**; CI runs both suites |
 | Open source | MIT license, contribution/security/conduct docs, issue and PR templates |
 
 ### Honest limits

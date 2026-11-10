@@ -82,7 +82,12 @@ fun DiagnosticsScreen(
             appendLine("hostWs=${hostConnection.phase.name} participants=${hostConnection.participants.size}")
             appendLine("stats=active:${stats.activeStreams} sent:${stats.bytesSent} bitrate:${stats.approximateBitrateBps}")
             appendLine("tunnel=${tunnel.state.name} provider=${tunnel.provider} verified=${tunnel.verified}")
+            appendLine("tunnelMessage=${container.log.redact(tunnel.message ?: "none")}")
             appendLine("viewerPhase=${viewer.phase.name} viewerWs=${viewerConnection.phase.name}")
+            if (logs.isNotEmpty()) {
+                appendLine("runtimeLog:")
+                logs.takeLast(40).forEach { appendLine(it) }
+            }
             appendLine("note=invitation tokens and share URLs are omitted from this report")
     }
 
@@ -180,6 +185,15 @@ fun DiagnosticsScreen(
                 LabeledValue("Verified", if (tunnel.verified) "yes" else "no")
                 Spacer(Modifier.height(8.dp))
                 LabeledValue("Message", tunnel.message ?: "—")
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = {
+                    container.hostEngine.restartTunnel()
+                    Toast.makeText(context, "Restarting tunnel", Toast.LENGTH_SHORT).show()
+                }) {
+                    Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Restart tunnel")
+                }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "Public URLs are intentionally omitted from this screen because they contain invitation tokens.",

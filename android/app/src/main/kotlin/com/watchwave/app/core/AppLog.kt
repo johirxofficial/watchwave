@@ -4,8 +4,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -17,15 +17,18 @@ class AppLog(private val capacity: Int = 250) {
     private val _lines = MutableStateFlow<List<String>>(emptyList())
     val lines: StateFlow<List<String>> = _lines.asStateFlow()
 
-    private val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.US)
+    private val timeFormat = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.US)
 
     fun log(message: String) {
-        val safe = message
-            .replace(Regex("(?i)(t|token|hostToken|sessionToken)=[^&\\s]+"), "$1=[redacted]")
-            .take(400)
-        val line = "${timeFormat.format(Date())}  $safe"
+        val line = "${LocalTime.now().format(timeFormat)}  ${redact(message)}"
         _lines.update { current -> (current + line).takeLast(capacity) }
     }
+
+    /** Token- and URL-safe text, shared by the log and the copyable diagnostics report. */
+    fun redact(message: String): String = message
+        .replace(Regex("(?i)(t|token|hostToken|sessionToken|key|secret)=[^&\\s]+"), "$1=[redacted]")
+        .replace(Regex("https://[a-zA-Z0-9-]+\\.trycloudflare\\.com"), "https://<quick-tunnel>.trycloudflare.com")
+        .take(400)
 
     fun clear() {
         _lines.value = emptyList()

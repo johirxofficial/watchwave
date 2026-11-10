@@ -13,7 +13,10 @@ import kotlinx.coroutines.launch
  * Owns the active [TunnelProvider] and exposes one stable status stream to the UI and
  * the diagnostics API. Switching modes always stops the previous provider first.
  */
-class TunnelManager(private val scope: CoroutineScope) {
+class TunnelManager(
+    private val scope: CoroutineScope,
+    private val logger: (String) -> Unit = {},
+) {
 
     private val _status = MutableStateFlow(
         TunnelStatus(state = TunnelState.NOT_CONFIGURED, provider = "none", message = "No tunnel configured"),
@@ -38,7 +41,12 @@ class TunnelManager(private val scope: CoroutineScope) {
             }
 
             TunnelMode.ON_DEVICE -> {
-                provider = CloudflaredProcessProvider(config, scope, providerId = "built-in")
+                provider = CloudflaredProcessProvider(
+                    config,
+                    scope,
+                    providerId = "built-in",
+                    logger = logger,
+                )
             }
 
             TunnelMode.COMPANION_URL -> {
@@ -46,7 +54,7 @@ class TunnelManager(private val scope: CoroutineScope) {
             }
 
             TunnelMode.CLOUDFLARED_PROCESS -> {
-                provider = CloudflaredProcessProvider(config, scope)
+                provider = CloudflaredProcessProvider(config, scope, logger = logger)
             }
         }
 

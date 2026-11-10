@@ -36,6 +36,14 @@ data class TunnelConfig(
     val caBundlePath: String = "",
     /** Optional writable HOME for cloudflared state and logs. */
     val homeDir: String = "",
+    /**
+     * Transport for the Cloudflare edge connection. Quick Tunnels default to QUIC,
+     * which many mobile carriers and captive networks block; HTTP/2 over TCP:7844 is
+     * slower but far more reliable on Android.
+     */
+    val edgeProtocol: String = "http2",
+    /** Force IPv4 edge addresses, since broken IPv6 routing is a common mobile failure. */
+    val edgeIpVersion: String = "4",
     val healthPath: String = "/api/v1/health",
     val verifyTimeoutMs: Long = 45_000L,
     val quickTunnelArgs: List<String> = listOf("tunnel", "--no-autoupdate", "--url"),

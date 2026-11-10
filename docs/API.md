@@ -118,7 +118,7 @@ GET /api/v1/health
 {
   "status": "ok",
   "app": "WatchWave",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "protocolVersion": 1,
   "serverTime": 1762684800000
 }

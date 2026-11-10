@@ -91,6 +91,7 @@ jobs:
           ./gradlew
           :shared:test
           :streaming:testDebugUnitTest
+          :tunnel:testDebugUnitTest
           :app:assembleDebug
           --stacktrace
           --console=plain

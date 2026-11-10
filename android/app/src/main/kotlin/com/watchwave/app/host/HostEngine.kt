@@ -528,6 +528,9 @@ class HostEngine(
         val warnings = when (status.state) {
             TunnelState.FAILED -> listOfNotNull(status.message)
             TunnelState.NOT_INSTALLED -> listOfNotNull(status.message)
+            // A reconnect message always means a real attempt failed; initial startup
+            // is STARTING, so this does not flash a banner on every room start.
+            TunnelState.RECONNECTING -> listOfNotNull(status.message)
             else -> emptyList()
         }
         _state.update {

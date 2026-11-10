@@ -35,7 +35,7 @@ class AppContainer(context: Context) {
     val mediaRepository = MediaRepository(appContext, database)
     val secureStore = SecureStore(appContext)
     val playback = PlaybackController(appContext)
-    val tunnelManager = TunnelManager(scope)
+    val tunnelManager = TunnelManager(scope, logger = log::log)
     val webAssets = AssetWebAssets(appContext.assets)
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings.stateIn(
