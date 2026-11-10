@@ -18,6 +18,8 @@ export interface SyncClientOptions {
 
 const HEARTBEAT_MS = 15_000
 const STALE_MS = 50_000
+const RESYNC_MS = 8_000
+const COMMAND_CHECK_MS = 2_000
 const MAX_RECONNECT_ATTEMPTS = 8
 
 /**
@@ -30,6 +32,8 @@ export class SyncClient {
   private closed = false
   private attempt = 0
   private heartbeatTimer: number | null = null
+  private resyncTimer: number | null = null
+  private commandCheckTimer: number | null = null
   private reconnectTimer: number | null = null
   private lastMessageAt = 0
   private pendingPings = new Map<string, number>()
@@ -64,6 +68,8 @@ export class SyncClient {
     if (this.closed) return
     this.closed = true
     this.stopHeartbeat()
+    this.stopResync()
+    this.clearCommandCheck()
     this.clearReconnectTimer()
     const socket = this.socket
     this.socket = null
@@ -89,16 +95,36 @@ export class SyncClient {
     payload: { positionMs?: number; playbackSpeed?: number } = {},
   ): boolean {
     if (!this.canSend()) return false
+    // Capture the sequence the command was built against. If other frames arrive
+    // before the check runs, a higher authoritative sequence is still evidence that
+    // the host advanced, and a snapshot request is unnecessary.
+    const expectedSequence = this.latestSequence
     const message: SyncMessage = {
       type,
       roomId: this.options.roomId,
       commandId: randomId(),
       clientTimestamp: Date.now(),
-      expectedSequence: this.latestSequence,
+      expectedSequence,
       ...(payload.positionMs !== undefined ? { positionMs: Math.max(0, Math.round(payload.positionMs)) } : {}),
       ...(payload.playbackSpeed !== undefined ? { playbackSpeed: payload.playbackSpeed } : {}),
     }
-    return this.send(message)
+    const sent = this.send(message)
+    if (sent) this.scheduleCommandCheck(expectedSequence)
+    return sent
+  }
+
+  /**
+   * Ask the host for a fresh authoritative snapshot. Called on open, after a
+   * command that was not acknowledged, and periodically to bound drift.
+   */
+  requestState(): boolean {
+    if (!this.canSend()) return false
+    return this.send({
+      type: 'STATE_REQUEST',
+      roomId: this.options.roomId,
+      requestId: randomId(),
+      clientTimestamp: Date.now(),
+    })
   }
 
   /** Chat is independent of playback control policy; every participant may send. */
@@ -135,7 +161,11 @@ export class SyncClient {
       this.lastMessageAt = Date.now()
       this.setPhase('live')
       this.startHeartbeat()
+      this.startResync()
       this.sendClockPing()
+      // Do not rely on the join frame alone: ask for an explicit snapshot after
+      // every open/reopen so a missed broadcast can never leave us stale forever.
+      this.requestState()
     }
 
     socket.onmessage = (event: MessageEvent<string>) => {
@@ -153,7 +183,14 @@ export class SyncClient {
         })
       }
       if ((message.type === 'STATE_UPDATE' || message.type === 'MEDIA_CHANGED') && typeof message.sequence === 'number') {
-        this.latestSequence = Math.max(this.latestSequence, message.sequence)
+        if (message.type === 'STATE_UPDATE' && message.requestId) {
+          // A direct snapshot is authoritative even if it is older than a frame
+          // we previously applied. Align the command sequence to it.
+          this.latestSequence = message.sequence
+          this.clearCommandCheck()
+        } else {
+          this.latestSequence = Math.max(this.latestSequence, message.sequence)
+        }
       }
       this.options.onMessage(message)
     }
@@ -167,6 +204,8 @@ export class SyncClient {
       if (this.socket !== socket) return
       this.socket = null
       this.stopHeartbeat()
+      this.stopResync()
+      this.clearCommandCheck()
       if (this.closed) return
 
       if (event.code === 1008 || event.code === 1003) {
@@ -240,6 +279,37 @@ export class SyncClient {
     if (this.heartbeatTimer !== null) {
       window.clearInterval(this.heartbeatTimer)
       this.heartbeatTimer = null
+    }
+  }
+
+  private startResync(): void {
+    this.stopResync()
+    this.resyncTimer = window.setInterval(() => {
+      if (this.closed || document.visibilityState === 'hidden') return
+      this.requestState()
+    }, RESYNC_MS)
+  }
+
+  private stopResync(): void {
+    if (this.resyncTimer !== null) {
+      window.clearInterval(this.resyncTimer)
+      this.resyncTimer = null
+    }
+  }
+
+  private scheduleCommandCheck(expectedSequence: number): void {
+    this.clearCommandCheck()
+    this.commandCheckTimer = window.setTimeout(() => {
+      this.commandCheckTimer = null
+      if (this.closed) return
+      if (this.latestSequence <= expectedSequence) this.requestState()
+    }, COMMAND_CHECK_MS)
+  }
+
+  private clearCommandCheck(): void {
+    if (this.commandCheckTimer !== null) {
+      window.clearTimeout(this.commandCheckTimer)
+      this.commandCheckTimer = null
     }
   }
 

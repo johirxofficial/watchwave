@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
 import { BrandMark } from '../components/Brand'
 import {
@@ -35,6 +35,7 @@ const REPO_URL = 'https://github.com/johirxofficial/watchwave'
 
 export function LandingPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [hostVersion, setHostVersion] = useState<string | null>(null)
@@ -45,13 +46,13 @@ export function LandingPage() {
   }, [])
 
   useEffect(() => {
-    if (window.location.hash !== '#join') return
+    if (location.hash !== '#join') return
     const timer = window.setTimeout(() => {
       document.getElementById('join')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       document.getElementById('invite-input')?.focus()
     }, 80)
     return () => window.clearTimeout(timer)
-  }, [])
+  }, [location.hash, location.key])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -84,7 +85,7 @@ export function LandingPage() {
   const activeSessions = useMemo(() => sessions.slice(0, 3), [sessions])
 
   return (
-    <AppShell active="home">
+    <AppShell>
       <div className="relative overflow-hidden">
         <div className="ambient pointer-events-none absolute inset-0">
           <div className="absolute -left-48 -top-40 size-[36rem] rounded-full bg-wave-cyan/[0.08] blur-3xl" />

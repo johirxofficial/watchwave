@@ -206,7 +206,13 @@ fun ViewerScreen(
 
                     if (connection.hostOffline) {
                         InfoBanner(
-                            message = "The host connection dropped. Playback may continue briefly from the buffer, but controls will queue until the socket reconnects.",
+                            message = "The host connection dropped. Playback may continue briefly from the buffer, but controls are unavailable until the socket reconnects.",
+                            color = WaveAmber,
+                        )
+                    }
+                    if (playback.syncStale && connection.phase == ConnectionPhase.LIVE) {
+                        InfoBanner(
+                            message = "Waiting for a fresh snapshot from the host. Playback is paused so this device cannot drift away from the room.",
                             color = WaveAmber,
                         )
                     }

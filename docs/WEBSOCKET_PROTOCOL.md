@@ -64,6 +64,7 @@ frame. Clients must tolerate missing fields and use `null`/`undefined` checks.
 | `errorMessage` | string | Human-readable error |
 | `clientTimestamp` | number | Client time when a command was created |
 | `expectedSequence` | number | Sequence the client believes is current |
+| `requestId` | string | Correlation id for a `STATE_REQUEST` / direct `STATE_UPDATE` reply |
 | `retryAfterMs` | number | Suggested retry delay |
 | `text` | string | Text for notices, errors, chat sends and ping correlation |
 | `chatMessages` | array | Chat messages (send, broadcast or history) |
@@ -87,6 +88,7 @@ Participant objects:
 | --- | --- | --- |
 | `JOIN_ACK` | server → client | Identity, host flag, initial participants, control policy |
 | `STATE_UPDATE` | server → client | Authoritative playback state |
+| `STATE_REQUEST` | client → server | Ask for an immediate authoritative `STATE_UPDATE` |
 | `PARTICIPANTS` | server → client | Full participant snapshot and control policy |
 | `PARTICIPANT_JOINED` | server → client | A participant connected |
 | `PARTICIPANT_LEFT` | server → client | A participant disconnected or left |
@@ -174,11 +176,20 @@ Rules:
    accepts the pong silently. Clients may also send their own `SYNC_PING`, which the
    server answers with `SYNC_PONG` and the original `text` correlation value.
 6. Clients apply `STATE_UPDATE`/`MEDIA_CHANGED` frames with a sequence greater than or
-   equal to the last applied sequence.
-7. On network loss the client reconnects with backoff and the same session token, then
-   requests/uses the state from the new socket.
-8. On `LEAVE` or a clean client close, the server marks the participant disconnected and
-   broadcasts `PARTICIPANT_LEFT`/`PARTICIPANTS`.
+   equal to the last applied sequence. A `STATE_UPDATE` carrying the `requestId` of a
+   client `STATE_REQUEST` is a direct reply and is authoritative even when its sequence is
+   older than the last broadcast (for example after a host restart).
+7. Clients send `STATE_REQUEST` on connect and every 8 seconds while live. The server
+   replies with a correlated `STATE_UPDATE`, so a missed broadcast cannot leave a viewer
+   silently out of sync.
+8. After sending a playback command, a client waits about 2 seconds. If its applied sequence
+   has not advanced, it sends `STATE_REQUEST` to recover the authoritative state.
+9. If no authoritative frame has arrived for 12 seconds, clients pause local playback and
+   show a re-syncing state rather than free-running on a stale clock.
+10. On network loss the client reconnects with backoff and the same session token, then
+    requests a fresh state snapshot from the new socket.
+11. On `LEAVE` or a clean client close, the server marks the participant disconnected and
+    broadcasts `PARTICIPANT_LEFT`/`PARTICIPANTS`.
 
 If a participant reconnects while an old socket is still registered, the server replaces
 the old connection and closes it with code `1000` and the reason "Replaced by reconnect".
@@ -233,6 +244,21 @@ A `STATE_UPDATE` looks like:
   "serverTime": 1762684920340
 }
 ```
+
+A client can request the same snapshot at any time:
+
+```json
+{
+  "type": "STATE_REQUEST",
+  "v": 1,
+  "roomId": "k3f9xz2m7q1a",
+  "requestId": "1c5f2f7a-2c1e-4cf0-9e89-2b5f3e66c8b1",
+  "clientTimestamp": 1762684921200
+}
+```
+
+The reply is a normal `STATE_UPDATE` with the same `requestId`. Clients reconcile their
+last applied sequence from that reply and use it to confirm whether a command landed.
 
 Clients project the position between frames:
 

@@ -9,6 +9,8 @@ import { CloseIcon, LockIcon, PlayIcon, RefreshIcon, WifiOffIcon } from '../comp
 import { KeyCap, LiveDot, Pill, Spinner } from '../components/ui'
 import { PlayerControls } from './PlayerControls'
 
+const AUTHORITATIVE_STALE_MS = 12_000
+
 export interface WatchPlayerProps {
   mediaUrl: string
   mediaTitle: string
@@ -88,6 +90,9 @@ export function WatchPlayer({
   const [controlsVisible, setControlsVisible] = useState(true)
   const [helpOpen, setHelpOpen] = useState(false)
   const [skipFlash, setSkipFlash] = useState<{ direction: 'back' | 'forward'; id: number } | null>(null)
+  const [pendingControl, setPendingControl] = useState(false)
+  const [syncStale, setSyncStale] = useState(false)
+  const pendingTimerRef = useRef<number | null>(null)
 
   playbackRef.current = playback
   serverNowRef.current = serverNow
@@ -111,6 +116,27 @@ export function WatchPlayer({
           setNeedsGesture(true)
         }
       })
+  }, [])
+
+  const markPending = useCallback(() => {
+    setPendingControl(true)
+    if (pendingTimerRef.current !== null) window.clearTimeout(pendingTimerRef.current)
+    // Host confirmation normally arrives in well under a second. If it does not,
+    // the resync loop will correct us; this only controls the hint shown in the UI.
+    pendingTimerRef.current = window.setTimeout(() => setPendingControl(false), 4_000)
+  }, [])
+
+  const authoritativePositionMs = useCallback((): number | null => {
+    const current = playbackRef.current
+    if (!current) return null
+    return projectPosition(
+      current.positionMs,
+      current.anchorServerMs,
+      current.playbackSpeed,
+      current.isPlaying,
+      serverNowRef.current(),
+      current.durationMs,
+    )
   }, [])
 
   // Initial volume from local preferences.
@@ -162,6 +188,11 @@ export function WatchPlayer({
   useEffect(() => {
     const video = videoRef.current
     if (!video || !playback) return
+    setPendingControl(false)
+    if (pendingTimerRef.current !== null) {
+      window.clearTimeout(pendingTimerRef.current)
+      pendingTimerRef.current = null
+    }
     const expected = projectPosition(
       playback.positionMs,
       playback.anchorServerMs,
@@ -203,6 +234,19 @@ export function WatchPlayer({
 
       const current = playbackRef.current
       if (!current) return
+
+      // Never let the local decoder free-run on a stale clock. If no authoritative
+      // frame has arrived for a while, stop and wait for the resync rather than
+      // showing a confident "in sync" badge while drifting away from the host.
+      const age = current.receivedAt ? Date.now() - current.receivedAt : 0
+      if (age > AUTHORITATIVE_STALE_MS) {
+        if (!video.paused) video.pause()
+        setSyncStale(true)
+        setDriftMs(0)
+        return
+      }
+      setSyncStale(false)
+
       const expected = projectPosition(
         current.positionMs,
         current.anchorServerMs,
@@ -266,35 +310,43 @@ export function WatchPlayer({
 
   useEffect(() => () => {
     if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current)
+    if (pendingTimerRef.current !== null) window.clearTimeout(pendingTimerRef.current)
   }, [])
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current
+    const current = playbackRef.current
     if (!video || !canControlRef.current) return
-    if (video.paused) {
+
+    // Do not mutate the local media element here. The host is the source of truth;
+    // if we optimistically play/pause and the command is rejected (or the socket
+    // drops mid-flight), this viewer would silently drift away from everyone else.
+    // The authoritative STATE_UPDATE below starts or stops the local decoder.
+    if (!current) return
+    markPending()
+    if (current.isPlaying) {
+      onPause(video.currentTime * 1000)
+    } else {
       needsGestureRef.current = false
       setNeedsGesture(false)
-      safePlay()
-      onPlay(video.currentTime * 1000)
-    } else {
-      video.pause()
-      onPause(video.currentTime * 1000)
+      onPlay(authoritativePositionMs() ?? video.currentTime * 1000)
     }
     revealControls()
-  }, [onPause, onPlay, revealControls, safePlay])
+  }, [authoritativePositionMs, markPending, onPause, onPlay, revealControls])
 
   const seekBy = useCallback(
     (deltaMs: number) => {
       const video = videoRef.current
       if (!video || !canControlRef.current) return
-      const duration = playbackRef.current?.durationMs || video.duration * 1000 || 0
-      const target = clamp(video.currentTime * 1000 + deltaMs, 0, Math.max(0, duration))
-      video.currentTime = target / 1000
-      lastKnownPositionRef.current = target
+      const current = playbackRef.current
+      const duration = current?.durationMs || video.duration * 1000 || 0
+      const base = authoritativePositionMs() ?? video.currentTime * 1000
+      const target = clamp(base + deltaMs, 0, Math.max(0, duration))
+      markPending()
       onSeek(target)
       setSkipFlash({ direction: deltaMs < 0 ? 'back' : 'forward', id: Date.now() })
     },
-    [onSeek],
+    [authoritativePositionMs, markPending, onSeek],
   )
 
   useEffect(() => {
@@ -311,22 +363,19 @@ export function WatchPlayer({
       if (!video || !canControlRef.current) return
       const duration = playbackRef.current?.durationMs || video.duration * 1000 || 0
       const target = clamp(valueMs, 0, Math.max(0, duration))
-      video.currentTime = target / 1000
-      lastKnownPositionRef.current = target
-      driftRef.current.reset(performance.now())
+      markPending()
       onSeek(target)
     },
-    [onSeek],
+    [markPending, onSeek],
   )
 
   const changeSpeed = useCallback(
     (speed: number) => {
-      const video = videoRef.current
-      if (!video || !canControlRef.current) return
-      video.playbackRate = speed
+      if (!videoRef.current || !canControlRef.current) return
+      markPending()
       onSpeed(speed)
     },
-    [onSpeed],
+    [markPending, onSpeed],
   )
 
   const changeVolume = useCallback((next: number) => {
@@ -551,6 +600,11 @@ export function WatchPlayer({
                   <LockIcon size={12} /> Locked
                 </Pill>
               ) : null}
+              {pendingControl ? (
+                <Pill tone="amber">
+                  <LiveDot tone="amber" /> Syncing
+                </Pill>
+              ) : null}
             </div>
           </div>
           <p className="hidden shrink-0 font-mono text-[11px] text-white/50 sm:block">
@@ -570,6 +624,7 @@ export function WatchPlayer({
           driftMs={driftMs}
           skipSeconds={skipSeconds}
           showDrift={showDrift}
+          stale={syncStale}
           fullscreen={fullscreen}
           pipSupported={canPip}
           pipActive={pipActive}
@@ -618,7 +673,16 @@ export function WatchPlayer({
         <CentrePanel>
           <button
             type="button"
-            onClick={togglePlay}
+            onClick={() => {
+              // This is a local gesture only. Sending PLAY through the room would
+              // be harmless, but calling togglePlay() here would send PAUSE to
+              // everyone when the host is already playing and only this browser
+              // was blocked from autoplay.
+              needsGestureRef.current = false
+              setNeedsGesture(false)
+              safePlay()
+              revealControls()
+            }}
             className="grid size-16 place-items-center rounded-full border border-white/20 bg-white/10 text-white shadow-glow backdrop-blur transition hover:scale-105 hover:bg-white/15"
             aria-label="Start synchronized playback"
           >
@@ -627,6 +691,13 @@ export function WatchPlayer({
           <p className="text-sm font-medium text-white">Tap to join playback</p>
           <p className="max-w-xs text-center text-xs text-wave-muted">
             Your browser blocked autoplay. One tap starts the room at the host's exact position.
+          </p>
+        </CentrePanel>
+      ) : syncStale ? (
+        <CentrePanel>
+          <Spinner label="Re-syncing with the host…" />
+          <p className="max-w-xs text-center text-xs text-wave-muted">
+            Playback paused so this viewer cannot drift away from the room.
           </p>
         </CentrePanel>
       ) : showCenterPlay ? (

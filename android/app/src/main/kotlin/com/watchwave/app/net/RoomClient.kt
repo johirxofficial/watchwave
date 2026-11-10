@@ -118,6 +118,7 @@ class RoomClient(
 
     private var connectJob: Job? = null
     private var tokenJob: Job? = null
+    private var resyncJob: Job? = null
 
     fun serverNow(): Long = System.currentTimeMillis() + _serverOffset.value
 
@@ -130,6 +131,12 @@ class RoomClient(
                 delay(TOKEN_REFRESH_MS)
                 runCatching { refreshMediaToken() }
                     .onFailure { logger("Media token refresh failed: ${it::class.simpleName}") }
+            }
+        }
+        resyncJob = scope.launch {
+            while (currentCoroutineContext().isActive && !closed.get()) {
+                delay(RESYNC_MS)
+                if (_connection.value.phase == ConnectionPhase.LIVE) requestState()
             }
         }
     }
@@ -148,6 +155,25 @@ class RoomClient(
 
     fun ended(positionMs: Long): Boolean =
         sendCommand(command(MessageType.ENDED, positionMs = positionMs, speed = 1f))
+
+    /**
+     * Ask for a fresh authoritative snapshot. Used on connect and periodically so a
+     * missed broadcast frame cannot leave this client silently out of sync.
+     */
+    fun requestState(): Boolean {
+        if (closed.get() || _connection.value.phase != ConnectionPhase.LIVE) return false
+        val message = SyncMessage(
+            type = MessageType.STATE_REQUEST,
+            roomId = roomId,
+            requestId = UUID.randomUUID().toString(),
+            clientTimestamp = System.currentTimeMillis(),
+        )
+        scope.launch {
+            val session = socket ?: return@launch
+            runCatching { sendFrame(session, message) }
+        }
+        return true
+    }
 
     /**
      * Chat is available to every participant, regardless of playback control policy.
@@ -205,6 +231,8 @@ class RoomClient(
         connectJob = null
         tokenJob?.cancel()
         tokenJob = null
+        resyncJob?.cancel()
+        resyncJob = null
         socket = null
         runCatching { http.close() }
         _chat.value = emptyList()
@@ -231,6 +259,9 @@ class RoomClient(
                     _connection.update {
                         it.copy(phase = ConnectionPhase.LIVE, message = null, errorCode = null)
                     }
+                    // The join frame is not enough on its own; ask for a snapshot
+                    // after every open/reopen so reconnects converge immediately.
+                    requestState()
                     val heartbeat = launch { heartbeatLoop(this@webSocket) }
                     try {
                         for (frame in incoming) {
@@ -429,7 +460,11 @@ class RoomClient(
         val current = _playback.value
         val sequence = message.sequence ?: current?.sequence ?: 0L
         val mediaId = message.mediaId ?: current?.mediaId
-        if (current != null && current.mediaId == mediaId && sequence < current.sequence) return
+        // Direct replies to STATE_REQUEST are authoritative even when their
+        // sequence is older than the last broadcast we applied (for example after
+        // the host restarted). Ordinary broadcasts still use sequence ordering.
+        val direct = !message.requestId.isNullOrBlank()
+        if (!direct && current != null && current.mediaId == mediaId && sequence < current.sequence) return
         val anchor = message.serverTimestamp ?: message.serverTime ?: serverNow()
         _playback.value = AuthoritativePlayback(
             mediaId = mediaId,
@@ -487,9 +522,14 @@ class RoomClient(
     private fun sendCommand(message: SyncMessage): Boolean {
         if (closed.get() || _connection.value.phase != ConnectionPhase.LIVE) return false
         if (!_connection.value.canControl) return false
+        val expected = message.expectedSequence
         scope.launch {
             val session = socket ?: return@launch
             runCatching { sendFrame(session, message) }
+            delay(COMMAND_CHECK_MS)
+            if (!closed.get() && (expected == null || (_playback.value?.sequence ?: 0L) <= expected)) {
+                requestState()
+            }
         }
         return true
     }
@@ -517,6 +557,8 @@ class RoomClient(
     companion object {
         private const val HEARTBEAT_MS = 15_000L
         private const val TOKEN_REFRESH_MS = 30 * 60 * 1000L
+        private const val RESYNC_MS = 8_000L
+        private const val COMMAND_CHECK_MS = 2_000L
         private const val MAX_RECONNECT_ATTEMPTS = 6
     }
 }

@@ -124,6 +124,37 @@ describe('SyncClient', () => {
     expect(client.sendChat('after close')).toBe(false)
   })
 
+  it('requests an authoritative snapshot on open and periodically', () => {
+    vi.useFakeTimers()
+    const { client } = buildClient()
+    client.connect()
+    const socket = FakeWebSocket.instances[0]
+    socket.open()
+    expect(socket.lastSent()).toMatchObject({ type: 'STATE_REQUEST', roomId: 'abc123' })
+    expect(typeof socket.lastSent().requestId).toBe('string')
+    vi.advanceTimersByTime(8_000)
+    expect(socket.lastSent()).toMatchObject({ type: 'STATE_REQUEST', roomId: 'abc123' })
+    client.close()
+  })
+
+  it('aligns its command sequence to a correlated snapshot response', () => {
+    const { client } = buildClient()
+    client.connect()
+    const socket = FakeWebSocket.instances[0]
+    socket.open()
+    socket.receive({ type: 'STATE_UPDATE', mediaId: 'm', sequence: 7, serverTimestamp: Date.now() })
+    socket.receive({
+      type: 'STATE_UPDATE',
+      mediaId: 'm',
+      sequence: 3,
+      serverTimestamp: Date.now(),
+      requestId: 'snapshot-1',
+    })
+    expect(client.sendCommand('PLAY', { positionMs: 1_000 })).toBe(true)
+    expect(socket.lastSent()).toMatchObject({ type: 'PLAY', expectedSequence: 3 })
+    client.close()
+  })
+
   it('answers server pings with the same correlation id', () => {
     const { client } = buildClient()
     client.connect()

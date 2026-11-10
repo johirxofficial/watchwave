@@ -69,8 +69,12 @@ fun AdvancedSettingsScreen(
     var autoReconnect by remember(settings.autoReconnect) { mutableStateOf(settings.autoReconnect) }
     var saving by remember { mutableStateOf(false) }
 
-    val driftValid = listOf(driftSmall, driftMedium, driftLarge)
-        .all { it.toLongOrNull()?.let { value -> value > 0 } == true }
+    val driftValues = listOf(driftSmall, driftMedium, driftLarge).map { it.toLongOrNull() }
+    val driftPositive = driftValues.all { it != null && it > 0L }
+    val driftOrdered =
+        driftValues[0] != null && driftValues[1] != null && driftValues[2] != null &&
+            driftValues[0]!! <= driftValues[1]!! && driftValues[1]!! <= driftValues[2]!!
+    val driftValid = driftPositive && driftOrdered
 
     ScreenScaffold(
         title = "Advanced settings",
@@ -137,7 +141,11 @@ fun AdvancedSettingsScreen(
                     if (!driftValid) {
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "All thresholds must be positive numbers.",
+                            if (!driftPositive) {
+                                "All thresholds must be positive numbers."
+                            } else {
+                                "Thresholds must increase: speed nudge ≤ strong nudge ≤ seek."
+                            },
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.labelSmall,
                         )

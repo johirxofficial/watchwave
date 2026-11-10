@@ -45,6 +45,8 @@ data class LocalPlaybackState(
     val mediaTitle: String? = null,
     val hasMedia: Boolean = false,
     val ended: Boolean = false,
+    /** True when the last authoritative snapshot is too old to trust. */
+    val syncStale: Boolean = false,
 )
 
 data class RoomLink(

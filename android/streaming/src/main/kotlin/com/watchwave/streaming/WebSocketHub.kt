@@ -155,6 +155,14 @@ class WebSocketHub(
                     // It carries no command and must not be treated as an error.
                     MessageType.SYNC_PONG -> Unit
 
+                    // A client can ask for a fresh authoritative snapshot at any time.
+                    // This bounds drift even when a broadcast frame is lost in transit.
+                    MessageType.STATE_REQUEST -> sendState(
+                        connection,
+                        engine,
+                        requestId = message.requestId ?: message.text,
+                    )
+
                     MessageType.LEAVE -> {
                         closeWith(session, CloseReason.Codes.NORMAL, "Client left")
                         break
@@ -475,7 +483,11 @@ class WebSocketHub(
         }
     }
 
-    private suspend fun sendState(connection: Connection, engine: SyncEngine) {
+    private suspend fun sendState(
+        connection: Connection,
+        engine: SyncEngine,
+        requestId: String? = null,
+    ) {
         val state = engine.state()
         send(
             connection,
@@ -491,6 +503,7 @@ class WebSocketHub(
                 isPlaying = state.isPlaying,
                 serverTimestamp = state.serverTimestamp,
                 serverTime = state.serverTime,
+                requestId = requestId,
             ),
         )
     }
@@ -501,8 +514,16 @@ class WebSocketHub(
         roomConnections.forEach { connection ->
             val ok = sendRaw(connection, raw)
             if (!ok) {
+                // A send timeout means this socket is no longer a reliable broadcast
+                // target. Remove it and close it so the client sees the close and
+                // reconnects; leaving the socket open would silently desynchronise it.
                 connections[roomId]?.remove(connection.participantId, connection)
                 roomManager().setParticipantConnected(roomId, connection.participantId, false)
+                runCatching {
+                    withTimeoutOrNull(1_000L) {
+                        connection.session.close(CloseReason(CloseReason.Codes.GOING_AWAY, "Send failed"))
+                    }
+                }
             }
         }
     }
@@ -550,7 +571,16 @@ class WebSocketHub(
                     serverTime = clock.wallMs(),
                 ),
             )
-            if (!ok) break
+            if (!ok) {
+                // The peer is not reading frames anymore. Close the socket so both
+                // sides tear down the connection and the client can reconnect.
+                runCatching {
+                    withTimeoutOrNull(1_000L) {
+                        connection.session.close(CloseReason(CloseReason.Codes.GOING_AWAY, "Heartbeat failed"))
+                    }
+                }
+                break
+            }
         }
     }
 

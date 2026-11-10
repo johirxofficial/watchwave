@@ -19,6 +19,7 @@ export type MessageType =
   | 'SET_SPEED'
   | 'ENDED'
   | 'STATE_UPDATE'
+  | 'STATE_REQUEST'
   | 'PARTICIPANT_JOINED'
   | 'PARTICIPANT_LEFT'
   | 'PARTICIPANTS'
@@ -169,6 +170,7 @@ export interface SyncMessage {
   clientTimestamp?: number
   expectedSequence?: number
   retryAfterMs?: number
+  requestId?: string
   text?: string
   chatMessages?: ChatMessage[]
 }

@@ -42,6 +42,7 @@ class PlaybackSync(
 
     private var appliedMediaId: String? = null
     private var lastAuthoritativeSpeed = 1f
+    private var lastAuthoritativeAtMs = 0L
     private val endedSent = AtomicBoolean(false)
     private var jobs: List<Job> = emptyList()
 
@@ -53,7 +54,10 @@ class PlaybackSync(
         jobs = listOf(
             scope.launch(Dispatchers.Main.immediate) {
                 client.playback.collect { authoritative ->
-                    if (authoritative != null) applyAuthoritative(authoritative)
+                    if (authoritative != null) {
+                        lastAuthoritativeAtMs = SystemClock.elapsedRealtime()
+                        applyAuthoritative(authoritative)
+                    }
                 }
             },
             scope.launch(Dispatchers.Main.immediate) {
@@ -65,39 +69,35 @@ class PlaybackSync(
         )
     }
 
+    // Commands are sent to the authoritative engine first. The local ExoPlayer is
+    // updated only by applyAuthoritative(), so a rejected command or a dropped
+    // socket can never leave the host playing a different position than the room.
     fun play() {
         if (!canControl()) return
-        playback.play()
         client.play(playback.positionMs, client.playback.value?.playbackSpeed ?: 1f)
-        publish()
     }
 
     fun pause() {
         if (!canControl()) return
-        playback.pause()
         client.pause(playback.positionMs, client.playback.value?.playbackSpeed ?: 1f)
-        publish()
     }
 
     fun toggle() {
-        if (playback.playWhenReady) pause() else play()
+        val authoritativePlaying = client.playback.value?.isPlaying ?: playback.playWhenReady
+        if (authoritativePlaying) pause() else play()
     }
 
     fun seekTo(positionMs: Long) {
         if (!canControl()) return
         val duration = client.playback.value?.durationMs ?: playback.durationMs
         val clamped = positionMs.coerceIn(0L, max(duration, 0L))
-        playback.seekTo(clamped)
         client.seek(clamped, client.playback.value?.playbackSpeed ?: 1f)
-        publish()
     }
 
     fun setSpeed(speed: Float) {
         if (!canControl()) return
         val clamped = speed.coerceIn(PlaybackController.MIN_SPEED, PlaybackController.MAX_SPEED)
-        playback.setSpeed(clamped)
         client.setSpeed(clamped, playback.positionMs)
-        publish()
     }
 
     fun canControl(): Boolean =
@@ -168,6 +168,14 @@ class PlaybackSync(
             publish()
             return
         }
+        if (isAuthoritativeStale()) {
+            // Never free-run on an old anchor. The client requests a fresh snapshot
+            // every few seconds; until it arrives, hold the local decoder so this
+            // device cannot drift away from the room unnoticed.
+            if (playback.playWhenReady) playback.setPlayWhenReady(false)
+            publish()
+            return
+        }
 
         val duration = max(authoritative.durationMs, playback.durationMs)
         val expected = expectedPositionMs(
@@ -227,10 +235,15 @@ class PlaybackSync(
             mediaTitle = authoritative?.mediaTitle ?: _state.value.mediaTitle,
             hasMedia = playback.hasMedia,
             ended = playback.hasEnded,
+            syncStale = isAuthoritativeStale(),
         )
     }
 
+    private fun isAuthoritativeStale(nowMs: Long = SystemClock.elapsedRealtime()): Boolean =
+        lastAuthoritativeAtMs > 0L && nowMs - lastAuthoritativeAtMs > AUTHORITATIVE_STALE_MS
+
     companion object {
         private const val TICK_MS = 500L
+        private const val AUTHORITATIVE_STALE_MS = 12_000L
     }
 }

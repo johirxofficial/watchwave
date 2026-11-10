@@ -17,6 +17,8 @@ export interface PlaybackAnchor {
   durationMs: number
   sequence: number
   anchorServerMs: number
+  /** Local wall-clock time when this snapshot arrived; used for the sync watchdog. */
+  receivedAt?: number
 }
 
 export type NoticeKind = 'info' | 'warn' | 'error'
@@ -118,8 +120,13 @@ export function applySyncMessage(state: PartyState, message: SyncMessage, server
       const current = state.playback
       const mediaId = message.mediaId ?? current?.mediaId
       if (!mediaId) return state
+      // A direct response to STATE_REQUEST is authoritative even if its sequence is
+      // lower than the last frame we saw (for example after a host restart). Ordinary
+      // broadcasts still use sequence ordering to discard out-of-order frames.
+      const isDirectResponse = typeof message.requestId === 'string' && message.requestId.length > 0
       if (
         current &&
+        !isDirectResponse &&
         current.mediaId === mediaId &&
         typeof message.sequence === 'number' &&
         message.sequence < current.sequence
@@ -139,6 +146,7 @@ export function applySyncMessage(state: PartyState, message: SyncMessage, server
           durationMs: message.durationMs ?? current?.durationMs ?? 0,
           sequence: message.sequence ?? current?.sequence ?? 0,
           anchorServerMs,
+          receivedAt: Date.now(),
         },
       }
     }

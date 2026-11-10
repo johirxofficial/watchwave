@@ -15,8 +15,19 @@ one HTTPS link is enough. **Instant public** mode starts a free Cloudflare Quick
 the phone itself; you do not need a PC, Termux, account or port forwarding in the normal
 flow.
 
-## What's new in 1.1
+## What's new in 1.1.1
 
+- **Resync that recovers, not guesses.** Viewers proactively request a fresh
+  authoritative snapshot on connect and every 8 seconds, verify that commands were
+  accepted, and pause local playback if the authoritative clock goes stale for 12
+  seconds. A host whose broadcast cannot reach a socket now closes that socket so the
+  client reconnects instead of drifting silently.
+- **Fewer confusing controls.** An autoplay-blocked browser now starts local playback
+  with one tap instead of accidentally pausing the whole room, and player controls only
+  change state after the host confirms the command.
+- **Layout and settings fixes.** Theater mode no longer duplicates chat/info panels,
+  the Join navigation works while already on the home page, Android tunnel chips fit
+  phone widths, and advanced drift thresholds must be ordered correctly.
 - **Midnight-cinema redesign** across Android and the browser client: an electric-blue
   accent, deeper surfaces, larger tap targets and a calmer, theater-first room layout.
 - **Responsive everywhere.** The browser shell adapts from a phone bottom bar to a desktop
@@ -56,27 +67,29 @@ and keeps the screen on during playback.
 | Area | Status |
 | --- | --- |
 | Android host | Real device: Samsung SM-A217F, Android 12, arm64-v8a |
-| SAF import + original-quality streaming | Real 15.6 s / 5.2 MB MP4; Range `206` with `Content-Range` |
-| Real-time playback sync | Real WebSocket `PLAY`, `PAUSE`, `SEEK`, `SET_SPEED`; browser frame rendered and in sync |
-| Browser viewer | Joined the real Android host, HTML5 `readyState=4`, play/pause verified |
-| Cloudflare Quick Tunnel | Verified from a Windows companion **and** on-device with the bundled arm64 binary |
+| SAF import + original-quality streaming | Real 34.6 s / 5.1 MB MP4; Range `206` with `Content-Range` |
+| Real-time playback sync | Real WebSocket `PLAY`, `PAUSE`, `SEEK`, `SET_SPEED`; periodic state resync and stale-clock pause |
+| Browser viewer | Joined a real on-device host over HTTPS, HTML5 `readyState=4`, video streamed and rendered |
+| Cloudflare Quick Tunnel | On-device bundled arm64 binary reached **PUBLIC LINK · TUNNEL VERIFIED**; public `/api/v1/health` returned `200` |
 | Room chat | Server-authoritative identity/timestamps, 500-char limit, 10/10 s rate limit, 100-message in-memory history; Android + browser UI; protocol integration tests |
-| One-tap in-app public link | Packaged and executable; final live-room UI pass blocked by a locked test device (see below) |
-| Automated tests | **66 Android tests** (38 shared + 28 streaming) and **58 browser tests**; CI runs both suites |
+| One-tap in-app public link | Verified live on the test phone: start room, public health check, browser join, stream and chat history |
+| Automated tests | **68 Android tests** (38 shared + 30 streaming) and **61 browser tests**; CI runs both suites |
 | Open source | MIT license, contribution/security/conduct docs, issue and PR templates |
 
 ### Honest limits
 
 These are not hidden “coming soon” features; they are the current boundary:
 
-- The updated one-tap tunnel and chat UI were built and installed, but the final live-room
-  pass on the test phone was blocked by its PIN lock. The bundled binary and CA bundle were
-  verified under the app's UID, and the same tunnel/binary path was verified end to end
-  from `/data/local/tmp`.
-- Only one physical Android phone was available. The Android viewer is covered by protocol
-  tests but not a second-device hardware run.
-- Screen-off playback, long sessions, Wi-Fi changes, port conflicts, permission revocation,
-  a Room v1→v2 migration and large-scale load have not been fully tested.
+- A single live room was verified end to end. Multi-room soak testing, long sessions and
+  repeated rapid reconnect cycles have not been measured.
+- Only one physical Android phone was available. The Android viewer path is covered by
+  protocol and unit tests, but a second physical Android device was not available for the
+  final two-device run.
+- On-device `cloudflared` logged SELinux `netlink_route_socket bind` denials, and Android may
+  kill background processes it considers phantom. The tunnel worked during verification, but
+  long-run stability on every OEM firmware is not proven.
+- Screen-off playback, Wi-Fi changes, port conflicts, permission revocation, a Room v1→v2
+  migration and large-scale load have not been fully tested.
 - Optimized for **arm64-v8a** phones for the bundled tunnel. Other ABIs fall back to LAN, a
   companion URL, or a custom cloudflared binary.
 - The debug APK is signed with an ephemeral CI debug key. Installing a newer CI build
@@ -202,10 +215,11 @@ npm test
 npm run build
 ```
 
-Current counts: **66 Android tests** and **58 browser tests**. The Android suite covers the
-chat limiter, empty/oversized chat rejection, history replay, socket joins/state, Range
-responses, tokens, rooms and sync. The web suite covers chat state/reducers, sync-client
-chat sends, drift, invite parsing, storage and clock behavior.
+Current counts: **68 Android tests** and **61 browser tests**. The Android suite covers the
+chat limiter, empty/oversized chat rejection, history replay, socket joins/state,
+correlated resync, viewer command fan-out, Range responses, tokens, rooms and sync. The web
+suite covers chat state/reducers, sync-client command/resync behaviour, drift, invite
+parsing, storage and clock behavior.
 
 CI is authoritative: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) builds the web
 client, runs both test suites, assembles the debug APK and uploads the artifact. Local Gradle

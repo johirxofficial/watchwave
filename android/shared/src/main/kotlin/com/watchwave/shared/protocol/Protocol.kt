@@ -29,6 +29,7 @@ enum class MessageType {
     SET_SPEED,
     ENDED,
     STATE_UPDATE,
+    STATE_REQUEST,
     PARTICIPANT_JOINED,
     PARTICIPANT_LEFT,
     PARTICIPANTS,
@@ -279,6 +280,7 @@ data class SyncMessage(
     val clientTimestamp: Long? = null,
     val expectedSequence: Long? = null,
     val retryAfterMs: Long? = null,
+    val requestId: String? = null,
     val text: String? = null,
     val chatMessages: List<ChatMessageDto>? = null,
 )

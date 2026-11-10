@@ -165,13 +165,13 @@ fun SettingsScreen(
                             onClick = { tunnelMode = TunnelMode.NONE },
                             label = { Text("LAN only") },
                         )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = tunnelMode == TunnelMode.COMPANION_URL,
                             onClick = { tunnelMode = TunnelMode.COMPANION_URL },
                             label = { Text("Companion") },
                         )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = tunnelMode == TunnelMode.CLOUDFLARED_PROCESS,
                             onClick = { tunnelMode = TunnelMode.CLOUDFLARED_PROCESS },

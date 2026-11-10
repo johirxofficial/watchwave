@@ -31,6 +31,7 @@ interface PlayerControlsProps {
   driftMs: number
   skipSeconds: number
   showDrift: boolean
+  stale?: boolean
   fullscreen: boolean
   pipSupported: boolean
   pipActive: boolean
@@ -59,6 +60,7 @@ export function PlayerControls({
   driftMs,
   skipSeconds,
   showDrift,
+  stale = false,
   fullscreen,
   pipSupported,
   pipActive,
@@ -124,11 +126,14 @@ export function PlayerControls({
 
         {showDrift ? (
           <span
-            className={cn('hidden items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] sm:flex', driftTone)}
-            title={`Clock drift: ${formatDrift(driftMs)}`}
+            className={cn(
+              'hidden items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] sm:flex',
+              stale ? 'text-wave-amber' : driftTone,
+            )}
+            title={stale ? 'Waiting for a fresh authoritative snapshot' : `Clock drift: ${formatDrift(driftMs)}`}
           >
-            <span className={cn('size-1.5 rounded-full', Math.abs(driftMs) < 350 ? 'bg-wave-green' : 'bg-current')} />
-            {Math.abs(driftMs) < 350 ? 'In sync' : `±${formatDrift(driftMs)}`}
+            <span className={cn('size-1.5 rounded-full', stale ? 'bg-wave-amber' : Math.abs(driftMs) < 350 ? 'bg-wave-green' : 'bg-current')} />
+            {stale ? 'Resyncing' : Math.abs(driftMs) < 350 ? 'In sync' : `±${formatDrift(driftMs)}`}
           </span>
         ) : null}
 

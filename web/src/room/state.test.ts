@@ -68,7 +68,31 @@ describe('party state', () => {
       durationMs: 60_000,
       sequence: 4,
       anchorServerMs: 9_500,
+      receivedAt: expect.any(Number),
     })
+  })
+
+  it('accepts a correlated state response even when its sequence is older', () => {
+    const first = sync(liveState(), {
+      type: 'STATE_UPDATE',
+      mediaId: 'm_1',
+      isPlaying: true,
+      positionMs: 5_000,
+      sequence: 9,
+      serverTimestamp: 1_000,
+    })
+    const resynced = sync(first, {
+      type: 'STATE_UPDATE',
+      mediaId: 'm_1',
+      isPlaying: false,
+      positionMs: 1_673,
+      sequence: 3,
+      serverTimestamp: 3_000,
+      requestId: 'snapshot-1',
+    })
+    expect(resynced.playback?.isPlaying).toBe(false)
+    expect(resynced.playback?.positionMs).toBe(1_673)
+    expect(resynced.playback?.sequence).toBe(3)
   })
 
   it('discards stale sequence updates for the same media', () => {

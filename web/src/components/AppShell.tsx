@@ -31,7 +31,13 @@ const NAV = [
  */
 export function AppShell({ children, active }: AppShellProps) {
   const location = useLocation()
-  const current = active ?? (location.pathname.startsWith('/settings') ? 'settings' : 'home')
+  const current =
+    active ??
+    (location.pathname.startsWith('/settings')
+      ? 'settings'
+      : location.pathname === '/' && location.hash === '#join'
+        ? 'join'
+        : 'home')
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })

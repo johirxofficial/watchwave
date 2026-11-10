@@ -19,6 +19,8 @@ import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.server.testing.testApplication
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -128,6 +130,122 @@ class WatchWaveWebSocketTest {
             assertEquals(false, ack.isHost)
             assertEquals("Viewer", ack.displayName)
             assertNotNull(ack.participants?.firstOrNull { it.displayName == "Host" })
+        }
+    }
+
+    @Test
+    fun `a viewer can play pause and seek for the whole room`() = testApplication {
+        application { server.installModuleOn(this) }
+        val hostClient = createClient { install(WebSockets) }
+        val viewerClient = createClient { install(WebSockets) }
+        val roomId = created.snapshot.roomId
+        val join = rooms.join(roomId, created.inviteToken, "Viewer")
+        val session = (join as RoomResult.Success).value
+
+        val hostEvents = Channel<SyncMessage>(Channel.UNLIMITED)
+        val viewerEvents = Channel<SyncMessage>(Channel.UNLIMITED)
+
+        hostClient.webSocket("$API_PREFIX/rooms/$roomId/sync?token=${created.hostSessionToken}") {
+            assertEquals(MessageType.JOIN_ACK, decodeNext().type)
+            val initial = decodeNext()
+            assertEquals(MessageType.STATE_UPDATE, initial.type)
+            assertEquals(false, initial.isPlaying)
+
+            // Drain the host socket in the background so a slow assertion never
+            // blocks the server's send path for this connection.
+            val hostReader = launch { collectMessages(hostEvents) }
+            try {
+                viewerClient.webSocket("$API_PREFIX/rooms/$roomId/sync?token=${session.sessionToken}") {
+                    assertEquals(MessageType.JOIN_ACK, decodeNext().type)
+                    assertEquals(MessageType.STATE_UPDATE, decodeNext().type)
+                    val viewerReader = launch { collectMessages(viewerEvents) }
+                    try {
+                        send(
+                            Frame.Text(
+                                SyncJson.encode(
+                                    SyncMessage(
+                                        type = MessageType.PLAY,
+                                        roomId = roomId,
+                                        commandId = "viewer-play",
+                                        positionMs = 2_000L,
+                                        expectedSequence = initial.sequence,
+                                    ),
+                                ),
+                            ),
+                        )
+                        val viewerPlaying = receiveState(viewerEvents) { it.isPlaying == true }
+                        val hostPlaying = receiveState(hostEvents) { it.isPlaying == true }
+                        assertTrue((viewerPlaying.sequence ?: 0L) > (initial.sequence ?: 0L))
+                        assertTrue((hostPlaying.sequence ?: 0L) > (initial.sequence ?: 0L))
+
+                        send(
+                            Frame.Text(
+                                SyncJson.encode(
+                                    SyncMessage(
+                                        type = MessageType.PAUSE,
+                                        roomId = roomId,
+                                        commandId = "viewer-pause",
+                                        expectedSequence = viewerPlaying.sequence,
+                                    ),
+                                ),
+                            ),
+                        )
+                        val viewerPaused = receiveState(viewerEvents) { it.isPlaying == false }
+                        val hostPaused = receiveState(hostEvents) { it.isPlaying == false }
+                        assertTrue((viewerPaused.sequence ?: 0L) > (viewerPlaying.sequence ?: 0L))
+                        assertEquals(viewerPaused.sequence, hostPaused.sequence)
+
+                        send(
+                            Frame.Text(
+                                SyncJson.encode(
+                                    SyncMessage(
+                                        type = MessageType.SEEK,
+                                        roomId = roomId,
+                                        commandId = "viewer-seek",
+                                        positionMs = 5_000L,
+                                        expectedSequence = viewerPaused.sequence,
+                                    ),
+                                ),
+                            ),
+                        )
+                        val viewerSeek = receiveState(viewerEvents) { (it.positionMs ?: 0L) >= 5_000L }
+                        val hostSeek = receiveState(hostEvents) { (it.positionMs ?: 0L) >= 5_000L }
+                        assertTrue((viewerSeek.sequence ?: 0L) > (viewerPaused.sequence ?: 0L))
+                        assertEquals(viewerSeek.sequence, hostSeek.sequence)
+                    } finally {
+                        viewerReader.cancel()
+                    }
+                }
+            } finally {
+                hostReader.cancel()
+            }
+        }
+    }
+
+    @Test
+    fun `a state request returns a correlated authoritative snapshot`() = testApplication {
+        application { server.installModuleOn(this) }
+        val wsClient = createClient { install(WebSockets) }
+        val roomId = created.snapshot.roomId
+
+        wsClient.webSocket("$API_PREFIX/rooms/$roomId/sync?token=${created.hostSessionToken}") {
+            assertEquals(MessageType.JOIN_ACK, decodeNext().type)
+            assertEquals(MessageType.STATE_UPDATE, decodeNext().type)
+
+            send(
+                Frame.Text(
+                    SyncJson.encode(
+                        SyncMessage(
+                            type = MessageType.STATE_REQUEST,
+                            roomId = roomId,
+                            requestId = "snapshot-1",
+                        ),
+                    ),
+                ),
+            )
+            val snapshot = awaitState(MessageType.STATE_UPDATE) { it.requestId == "snapshot-1" }
+            assertEquals(created.snapshot.media.mediaId, snapshot.mediaId)
+            assertEquals(false, snapshot.isPlaying)
         }
     }
 
@@ -292,6 +410,29 @@ class WatchWaveWebSocketTest {
         while (true) {
             val message = decodeNext()
             if (message.type == type && predicate(message)) return@withTimeout message
+        }
+        @Suppress("UNREACHABLE_CODE")
+        error("unreachable")
+    }
+
+    private suspend fun io.ktor.websocket.WebSocketSession.collectMessages(
+        channel: Channel<SyncMessage>,
+    ) {
+        for (frame in incoming) {
+            if (frame !is Frame.Text) continue
+            runCatching { SyncJson.decode(frame.readText()) }
+                .getOrNull()
+                ?.let { channel.send(it) }
+        }
+    }
+
+    private suspend fun receiveState(
+        channel: Channel<SyncMessage>,
+        predicate: (SyncMessage) -> Boolean,
+    ): SyncMessage = withTimeout(5_000L) {
+        while (true) {
+            val message = channel.receive()
+            if (message.type == MessageType.STATE_UPDATE && predicate(message)) return@withTimeout message
         }
         @Suppress("UNREACHABLE_CODE")
         error("unreachable")

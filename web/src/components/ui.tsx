@@ -329,7 +329,7 @@ export function Toggle({
       >
         <span
           className={cn(
-            'absolute top-0.5 size-4.5 rounded-full bg-white shadow transition-transform',
+            'absolute left-0 top-0.5 size-4.5 rounded-full bg-white shadow transition-transform',
             checked ? 'translate-x-[22px]' : 'translate-x-0.5',
           )}
           style={{ width: 18, height: 18 }}

@@ -258,7 +258,7 @@ export function RoomView({ roomId, party, onLeave }: RoomViewProps) {
         ) : null}
       </main>
 
-      <div className={cn('mx-auto mt-3 w-full max-w-[1680px] px-3 sm:px-4 lg:hidden', theater && 'lg:block')}>
+      <div className="mx-auto mt-3 w-full max-w-[1680px] px-3 sm:px-4 lg:hidden">
         <div className="rounded-2xl border border-white/[0.07] bg-ink-850/70">
           <div className="flex items-center gap-1 border-b border-white/[0.06] p-1.5">
             {(
@@ -320,7 +320,7 @@ export function RoomView({ roomId, party, onLeave }: RoomViewProps) {
       </div>
 
       {theater ? (
-        <div className="mx-auto mt-4 w-full max-w-[1680px] px-3 sm:px-4 lg:px-6">
+        <div className="mx-auto mt-4 hidden w-full max-w-[1680px] px-3 sm:px-4 lg:block lg:px-6">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="hidden lg:block">
               <ChatPanel
