@@ -40,7 +40,7 @@ connected through `adb forward tcp:8080 tcp:8080`.
 | Tokens/credentials never exposed | memory-only room tokens, hashed sessions, redacted tunnel errors | ✅ design + token tests; 🟡 no full device log audit |
 | Configurable app id/base domain | `watchwave.applicationId`, `watchwave.baseDomain` | ✅ Gradle config |
 | Docs and open-source files | `README.md`, `docs/*`, `LICENSE`, contribution/security templates | ✅ MIT license and community files added |
-| GitHub Actions | `.github/workflows/ci.yml`, `release.yml` | ✅ prior CI run `42589858867` passed; ✅ current 1.1.1 run recorded in Actions |
+| GitHub Actions | `.github/workflows/ci.yml`, `release.yml` | ✅ prior CI run `42589858867` passed; ✅ 1.1.1 run `42760442433` passed |
 | Release/R8 build | `:app:assembleRelease`, release workflow | ✅ builds an unsigned APK in CI; ⛔ signing secrets not configured |
 
 ## Automated verification
@@ -57,7 +57,8 @@ Environment: GitHub Actions Ubuntu, JDK 17, Node 20, Android platform 34.
 | Web `npm test` | 61 tests across 8 files passed |
 | Web `npm run build` | passed |
 | CI run `42589858867` | prior web + Android jobs passed; debug APK artifact uploaded |
-| CI run for 1.1.1 | recorded in GitHub Actions for commit `HEAD` of `main` |
+| CI run for 1.1.1 | ✅ run `42760442433` passed: browser typecheck/tests/build, 68 Android tests, debug APK artifact |
+| GitHub release `v1.1.1` | ✅ published with the CI debug APK (`45,186,733` bytes; SHA-256 `5304EDE464FDDDC89C45A23B447E121FCE62494CFD2BC47630E4C1B11D94CDE7`) |
 | Debug APK (v0.1.0) | 45,140,165 bytes; SHA-256 `2B9012BB329F14474F2549DE6A1409EED3E8A39B9A652B63F85292C5C3222AEC`; installed on the SM-A217F |
 | Bundled cloudflared | version `2026.10.7`; SHA-256 `3DF43AEDC9FF291D1735B5CB576CB97E0B157488796DB2E32B28AECABB445775`; `run-as com.watchwave.app .../lib/arm64/libcloudflared.so --version` succeeds |
 | Bundled CA bundle | Mozilla `cacert.pem`, 200,116 bytes; SHA-256 `427C064216761A1E72A8B30F0D954D08CB6E4435A82091FB865AFD20C8497285` |
