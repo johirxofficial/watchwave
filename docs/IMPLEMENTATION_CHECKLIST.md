@@ -40,7 +40,7 @@ connected through `adb forward tcp:8080 tcp:8080`.
 | Tokens/credentials never exposed | memory-only room tokens, hashed sessions, redacted tunnel errors | ✅ design + token tests; 🟡 no full device log audit |
 | Configurable app id/base domain | `watchwave.applicationId`, `watchwave.baseDomain` | ✅ Gradle config |
 | Docs and open-source files | `README.md`, `docs/*`, `LICENSE`, contribution/security templates | ✅ MIT license and community files added |
-| GitHub Actions | `.github/workflows/ci.yml`, `release.yml` | ✅ prior CI run `42589858867` passed; ✅ 1.1.1 run `42760442433` passed |
+| GitHub Actions | `.github/workflows/ci.yml`, `release.yml` | ✅ prior CI run `42589858867` passed; ✅ 1.1.1 run `42760442433` passed; ✅ 1.1.2 CI run `42767657360` and release run `42768208907` passed |
 | Release/R8 build | `:app:assembleRelease`, release workflow | ✅ builds an unsigned APK in CI; ⛔ signing secrets not configured |
 
 ## Automated verification
@@ -60,6 +60,9 @@ Environment: GitHub Actions Ubuntu, JDK 17, Node 20, Android platform 34.
 | CI run `42589858867` | prior web + Android jobs passed; debug APK artifact uploaded |
 | CI run for 1.1.1 | ✅ run `42760442433` passed: browser typecheck/tests/build, 68 Android tests, debug APK artifact |
 | GitHub release `v1.1.1` | ✅ published with the CI debug APK (`45,186,733` bytes; SHA-256 `5304EDE464FDDDC89C45A23B447E121FCE62494CFD2BC47630E4C1B11D94CDE7`) |
+| CI run for 1.1.2 | ✅ run `42767657360` passed: browser typecheck/tests/build, 71 Android tests (including 3 tunnel tests), debug APK artifact |
+| Release workflow `v1.1.2` | ✅ run `42768208907` passed; unsigned release APK artifact uploaded (signing secrets still not configured) |
+| GitHub release `v1.1.2` | ✅ published with the CI debug APK (`45,195,521` bytes; SHA-256 `7FD8C0C0D4F8B58ADEB5F00C135D759CC037B54AD01D67A2C21932C93923AF42`) |
 | Local `v1.1.2` debug APK | ✅ built locally (`45,228,094` bytes; SHA-256 `C9F96765E3061C978A8E8DF9ACC42D22CFD6FB2C17C9101D6E5AF791F5C075A3`); CI artifact hash will differ |
 | Debug APK (v0.1.0) | 45,140,165 bytes; SHA-256 `2B9012BB329F14474F2549DE6A1409EED3E8A39B9A652B63F85292C5C3222AEC`; installed on the SM-A217F |
 | Bundled cloudflared | version `2026.10.7`; SHA-256 `3DF43AEDC9FF291D1735B5CB576CB97E0B157488796DB2E32B28AECABB445775`; `run-as com.watchwave.app .../lib/arm64/libcloudflared.so --version` succeeds |
